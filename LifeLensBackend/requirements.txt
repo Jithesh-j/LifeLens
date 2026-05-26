@@ -1,0 +1,26 @@
+# Core
+fastapi==0.115.*
+uvicorn[standard]==0.34.*
+pydantic[email]==2.*
+pydantic-settings==2.*
+
+# Database
+sqlalchemy[asyncio]==2.*
+asyncpg==0.30.*
+pgvector==0.3.*
+alembic==1.15.*
+
+# Auth
+python-jose[cryptography]==3.3.*
+passlib[bcrypt]==1.7.*
+python-multipart==0.0.*
+
+# AI Orchestration
+litellm==1.*
+instructor==1.*
+numpy==2.*
+
+# Dev / Testing
+httpx==0.28.*
+pytest==8.*
+pytest-asyncio==0.25.*

@@ -1,0 +1,237 @@
+"""
+LifeLens — AI Service
+
+Core intelligence layer using Instructor + LiteLLM for structured LLM output.
+Handles activity categorization, insight generation, and pattern Q&A.
+"""
+
+import logging
+from datetime import date
+
+import instructor
+import litellm
+from pydantic import BaseModel, Field
+
+from app.config import settings
+
+logger = logging.getLogger(__name__)
+
+# ── Instructor client (wraps LiteLLM for structured output) ──
+
+client = instructor.from_litellm(litellm.acompletion)
+
+
+# ── Pydantic output schemas for structured AI responses ──────
+
+
+class ActivityAnalysis(BaseModel):
+    """Structured analysis of a single activity log."""
+
+    category: str = Field(
+        description="Activity category: exercise, work, social, learning, health, creative, errands, rest, travel, or other"
+    )
+    mood: str | None = Field(
+        default=None,
+        description="Inferred mood: happy, energetic, calm, tired, stressed, sad, neutral, or None if unclear",
+    )
+    tags: list[str] = Field(
+        default_factory=list,
+        description="2-5 relevant tags for this activity",
+    )
+
+
+class DailyInsight(BaseModel):
+    """Structured daily insight from activity analysis."""
+
+    summary: str = Field(description="2-3 sentence summary of the day's activities")
+    patterns: list[str] = Field(
+        default_factory=list,
+        description="Notable patterns observed (e.g., 'You exercised in the morning again')",
+    )
+    suggestions: list[str] = Field(
+        default_factory=list,
+        description="1-3 actionable suggestions based on the day's activities",
+    )
+    mood_trend: str = Field(
+        default="neutral",
+        description="Overall mood trend for the day",
+    )
+    productivity_score: int = Field(
+        default=5,
+        ge=1,
+        le=10,
+        description="Estimated productivity score from 1-10",
+    )
+
+
+class WeeklyInsight(BaseModel):
+    """Structured weekly insight with trend analysis."""
+
+    summary: str = Field(description="3-5 sentence summary of the week")
+    top_categories: list[str] = Field(
+        description="Top 3 activity categories for the week"
+    )
+    patterns: list[str] = Field(
+        description="Behavioral patterns observed across the week"
+    )
+    improvements: list[str] = Field(
+        description="Areas where the user improved compared to previous data"
+    )
+    suggestions: list[str] = Field(
+        description="2-4 actionable suggestions for next week"
+    )
+    mood_trend: str = Field(description="Overall mood trend for the week")
+
+
+# ── AI Functions ─────────────────────────────────────────────
+
+
+async def categorize_activity(content: str) -> ActivityAnalysis:
+    """
+    Analyze a single activity log entry and return structured metadata.
+    Called automatically when a user logs an activity.
+    """
+    try:
+        result = await client.chat.completions.create(
+            model=settings.AI_MODEL,
+            response_model=ActivityAnalysis,
+            messages=[
+                {
+                    "role": "system",
+                    "content": (
+                        "You are LifeLens, an AI that analyzes daily activity logs. "
+                        "Categorize the activity, infer the mood if possible, and assign relevant tags. "
+                        "Be concise and accurate."
+                    ),
+                },
+                {
+                    "role": "user",
+                    "content": f"Analyze this activity log:\n\n{content}",
+                },
+            ],
+        )
+        return result
+    except Exception as e:
+        logger.error(f"Activity categorization failed: {e}")
+        return ActivityAnalysis(category="other", mood=None, tags=[])
+
+
+async def generate_daily_insight(activities_text: str, date_str: str) -> DailyInsight:
+    """
+    Generate a daily insight from all activities logged on a given day.
+    """
+    try:
+        result = await client.chat.completions.create(
+            model=settings.AI_MODEL,
+            response_model=DailyInsight,
+            messages=[
+                {
+                    "role": "system",
+                    "content": (
+                        "You are LifeLens, a personal AI life coach. "
+                        "Analyze the user's daily activities and provide meaningful insights. "
+                        "Be encouraging, specific, and actionable. "
+                        "Reference specific activities in your analysis."
+                    ),
+                },
+                {
+                    "role": "user",
+                    "content": (
+                        f"Here are my activities for {date_str}:\n\n"
+                        f"{activities_text}\n\n"
+                        "Please provide a daily insight with summary, patterns, suggestions, "
+                        "mood trend, and productivity score."
+                    ),
+                },
+            ],
+        )
+        return result
+    except Exception as e:
+        logger.error(f"Daily insight generation failed: {e}")
+        return DailyInsight(
+            summary="Unable to generate insight at this time.",
+            patterns=[],
+            suggestions=["Try logging more activities for better insights."],
+            mood_trend="unknown",
+            productivity_score=5,
+        )
+
+
+async def generate_weekly_insight(
+    activities_text: str,
+    week_start: date,
+    week_end: date,
+) -> WeeklyInsight:
+    """
+    Generate a weekly insight from all activities in the given week.
+    """
+    try:
+        result = await client.chat.completions.create(
+            model=settings.AI_MODEL,
+            response_model=WeeklyInsight,
+            messages=[
+                {
+                    "role": "system",
+                    "content": (
+                        "You are LifeLens, a personal AI life coach specializing in weekly reviews. "
+                        "Analyze the user's weekly activities for patterns, trends, and improvements. "
+                        "Be thoughtful and provide specific, actionable advice for the coming week."
+                    ),
+                },
+                {
+                    "role": "user",
+                    "content": (
+                        f"Here are my activities from {week_start} to {week_end}:\n\n"
+                        f"{activities_text}\n\n"
+                        "Please provide a comprehensive weekly insight."
+                    ),
+                },
+            ],
+        )
+        return result
+    except Exception as e:
+        logger.error(f"Weekly insight generation failed: {e}")
+        return WeeklyInsight(
+            summary="Unable to generate weekly insight at this time.",
+            top_categories=[],
+            patterns=[],
+            improvements=[],
+            suggestions=["Keep logging activities for better weekly insights."],
+            mood_trend="unknown",
+        )
+
+
+async def answer_pattern_question(
+    question: str,
+    relevant_activities: str,
+) -> str:
+    """
+    Answer a freeform question about the user's patterns,
+    using relevant activities as context (retrieved via semantic search).
+    """
+    try:
+        response = await litellm.acompletion(
+            model=settings.AI_MODEL,
+            messages=[
+                {
+                    "role": "system",
+                    "content": (
+                        "You are LifeLens, a personal AI assistant that helps users understand "
+                        "their daily activity patterns. Answer the user's question based on their "
+                        "activity history provided below. Be specific, cite dates and activities, "
+                        "and provide actionable insights. If you don't have enough data, say so."
+                    ),
+                },
+                {
+                    "role": "user",
+                    "content": (
+                        f"My activity history:\n\n{relevant_activities}\n\n"
+                        f"My question: {question}"
+                    ),
+                },
+            ],
+        )
+        return response.choices[0].message.content or "I couldn't generate an answer."
+    except Exception as e:
+        logger.error(f"Pattern question answering failed: {e}")
+        return "Sorry, I'm unable to answer that right now. Please try again later."
