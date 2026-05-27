@@ -38,10 +38,10 @@ export default function ProfileScreen() {
       {/* User Card */}
       <View style={[styles.profileCard, { backgroundColor: cardBg }]}>
         <View style={[styles.avatar, { backgroundColor: primaryColor }]}>
-          <ThemedText style={styles.avatarText}>{getInitials(user?.username)}</ThemedText>
+          <ThemedText style={styles.avatarText}>{getInitials(user?.full_name)}</ThemedText>
         </View>
         <View style={styles.userInfo}>
-          <ThemedText style={styles.username}>{user?.username || 'Journaler'}</ThemedText>
+          <ThemedText style={styles.username}>{user?.full_name || 'Journaler'}</ThemedText>
           <ThemedText style={styles.email}>{user?.email || 'user@lifelens.com'}</ThemedText>
         </View>
       </View>

@@ -22,7 +22,20 @@ const MAPPING = {
   'person.crop.circle.fill': 'account-circle',
   'eyes': 'visibility',
   'exclamationmark.circle.fill': 'error',
-} as IconMapping;
+  'plus.circle.fill': 'add-circle',
+  'minus.circle.fill': 'remove-circle',
+  'mic.fill': 'mic',
+  'play.fill': 'play-arrow',
+  'checkmark.circle.fill': 'check-circle',
+  'clock.fill': 'access-time',
+  'laptop': 'laptop-mac',
+  'groups': 'people',
+  'phone': 'phone',
+  'gym': 'fitness-center',
+  'rest': 'restaurant',
+  'walk': 'directions-walk',
+  'calendar': 'event',
+} as const;
 
 /**
  * An icon component that uses native SF Symbols on iOS, and Material Icons on Android and web.

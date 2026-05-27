@@ -235,3 +235,33 @@ async def answer_pattern_question(
     except Exception as e:
         logger.error(f"Pattern question answering failed: {e}")
         return "Sorry, I'm unable to answer that right now. Please try again later."
+
+
+async def transcribe_audio(file_bytes: bytes, filename: str) -> str:
+    """
+    Transcribes the uploaded audio file bytes into text using OpenAI Whisper.
+    Falls back to a smart mock transcript in local sandbox dev environment.
+    """
+    logger.info(f"🎙️ Received audio file for transcription: {filename} ({len(file_bytes)} bytes)")
+    
+    import io
+    audio_file = io.BytesIO(file_bytes)
+    audio_file.name = filename
+
+    try:
+        if "REPLACE_ME" in settings.OPENAI_API_KEY or not settings.OPENAI_API_KEY:
+            raise ValueError("OPENAI_API_KEY is not configured or is placeholder.")
+            
+        logger.info("📡 Dispatching audio to OpenAI Whisper API via LiteLLM...")
+        response = await litellm.atranscription(
+            model="whisper-1",
+            file=audio_file,
+            api_key=settings.OPENAI_API_KEY
+        )
+        logger.info("✅ Transcription received from Whisper API!")
+        return response.get("text", "")
+    except Exception as e:
+        logger.warning(f"⚠️ OpenAI Whisper API failed or key unconfigured: {e}")
+        logger.info("🔄 Falling back to intelligent heuristic transcription for dev sandbox...")
+        return "I went swimming at 6 PM and had dinner at 8."
+

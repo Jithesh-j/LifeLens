@@ -7,7 +7,7 @@ Endpoints for logging, listing, searching, and deleting activities.
 import uuid
 from datetime import datetime
 
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, Depends, HTTPException, Query, status, File, UploadFile
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.dependencies import get_current_user
@@ -132,3 +132,43 @@ async def search(
         payload.query,
         payload.limit,
     )
+
+
+@router.post(
+    "/transcribe",
+    summary="Transcribe voice recording audio file",
+)
+async def transcribe(
+    file: UploadFile = File(...),
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """
+    Upload an audio recording file and transcribe it to text using Whisper.
+    Supports formats like mp4, m4a, mp3, wav.
+    """
+    import logging
+    logger = logging.getLogger(__name__)
+    
+    logger.info("--- START AUDIO TRANSCRIPTION PIPELINE ---")
+    logger.info(f"User ID: {current_user.id}")
+    logger.info(f"File Name: {file.filename}")
+    logger.info(f"Content Type: {file.content_type}")
+    
+    # Read the file bytes
+    file_bytes = await file.read()
+    logger.info(f"File Size: {len(file_bytes)} bytes")
+    
+    # Perform transcription
+    from app.services.ai_service import transcribe_audio
+    transcript = await transcribe_audio(file_bytes, file.filename)
+    
+    logger.info(f"Final Transcript: '{transcript}'")
+    logger.info("--- END AUDIO TRANSCRIPTION PIPELINE ---")
+    
+    return {
+        "transcript": transcript,
+        "filename": file.filename,
+        "size_bytes": len(file_bytes),
+    }
+
