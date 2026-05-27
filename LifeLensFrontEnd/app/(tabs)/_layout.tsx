@@ -10,7 +10,7 @@ import { useCalendarUI } from '@/context/calendar-ui';
 export default function TabLayout() {
   const colorScheme = useColorScheme();
   const router = useRouter();
-  const { calendarExpanded, setCalendarExpanded } = useCalendarUI();
+  const { calendarExpanded, setCalendarExpanded, selectedDate } = useCalendarUI();
 
   return (
     <Tabs
@@ -33,6 +33,13 @@ export default function TabLayout() {
         }}
       />
       <Tabs.Screen
+        name="suggestions"
+        options={{
+          title: 'Insights',
+          tabBarIcon: ({ color }) => <IconSymbol size={26} name="lightbulb.fill" color={color} />,
+        }}
+      />
+      <Tabs.Screen
         name="add-note"
         options={{
           title: '',
@@ -50,7 +57,7 @@ export default function TabLayout() {
             if (calendarExpanded) {
               setCalendarExpanded(false);
             } else {
-              router.push('/modal');
+              router.push({ pathname: '/modal', params: { date: selectedDate } });
             }
           },
         }}

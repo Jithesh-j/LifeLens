@@ -35,6 +35,16 @@ const MAPPING = {
   'rest': 'restaurant',
   'walk': 'directions-walk',
   'calendar': 'event',
+  'lightbulb.fill': 'lightbulb',
+  'brain.head.profile': 'psychology',
+  'chart.line.uptrend.xyaxis': 'trending-up',
+  'clock.arrow.circlepath': 'schedule',
+  'sparkles': 'auto-awesome',
+  'arrow.right': 'arrow-forward',
+  'figure.walk': 'directions-walk',
+  'moon.fill': 'nightlight-round',
+  'sun.max.fill': 'wb-sunny',
+  'bolt.fill': 'flash-on',
 } as const;
 
 /**

@@ -12,17 +12,19 @@ import {
   SafeAreaView,
   Alert,
 } from 'react-native';
-import { useRouter } from 'expo-router';
+import { useRouter, useLocalSearchParams } from 'expo-router';
 import { Audio } from 'expo-av';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { useThemeColor } from '@/hooks/use-theme-color';
 import { IconSymbol } from '@/components/ui/icon-symbol';
 import { api, ActivityResponse } from '@/services/api';
-import { useSchedule, parseNotesToEvents, ScheduleItem } from '@/context/schedule';
+import { useSchedule, parseNotesToEvents, ScheduleItem, getTodayDateStr } from '@/context/schedule';
 
 export default function AddNoteModal() {
   const router = useRouter();
+  const params = useLocalSearchParams();
+  const targetDate = (params.date as string) || getTodayDateStr();
   const { addNoteAndExtract } = useSchedule();
   const [activeTab, setActiveTab] = useState<'type' | 'voice'>('type');
   const [content, setContent] = useState('');
@@ -506,9 +508,9 @@ export default function AddNoteModal() {
       category: 'other',
       icon: 'rest',
       color: 'gray',
-      date: '2026-05-26',
-      startTime: '2026-05-26T12:00:00',
-      endTime: '2026-05-26T13:00:00',
+      date: targetDate,
+      startTime: `${targetDate}T12:00:00`,
+      endTime: `${targetDate}T13:00:00`,
       isAiExtracted: false,
     };
     setExtractedEvents((prev) => [...prev, newEv]);
@@ -523,10 +525,10 @@ export default function AddNoteModal() {
 
     setLoading(true);
     try {
-      const parsedEvents = parseNotesToEvents(content, '2026-05-26');
+      const parsedEvents = parseNotesToEvents(content, targetDate);
       setExtractedEvents(parsedEvents);
 
-      const response = await api.createActivity(content);
+      const response = await api.createActivity(content, `${targetDate}T12:00:00`);
       setAiResponse(response);
 
       setEditedCategory(response.category || 'other');
@@ -536,7 +538,7 @@ export default function AddNoteModal() {
       setShowReview(true);
     } catch (e: any) {
       console.error(e);
-      const parsedEvents = parseNotesToEvents(content, '2026-05-26');
+      const parsedEvents = parseNotesToEvents(content, targetDate);
       setExtractedEvents(parsedEvents);
       
       setEditedCategory('exercise');
@@ -558,10 +560,10 @@ export default function AddNoteModal() {
 
     setLoading(true);
     try {
-      const parsedEvents = parseNotesToEvents(voiceTranscript, '2026-05-26');
+      const parsedEvents = parseNotesToEvents(voiceTranscript, targetDate);
       setExtractedEvents(parsedEvents);
 
-      const response = await api.createActivity(voiceTranscript);
+      const response = await api.createActivity(voiceTranscript, `${targetDate}T12:00:00`);
       setAiResponse(response);
 
       setEditedCategory(response.category || 'other');
@@ -571,7 +573,7 @@ export default function AddNoteModal() {
       setShowReview(true);
     } catch (e: any) {
       console.error(e);
-      const parsedEvents = parseNotesToEvents(voiceTranscript, '2026-05-26');
+      const parsedEvents = parseNotesToEvents(voiceTranscript, targetDate);
       setExtractedEvents(parsedEvents);
       
       setEditedCategory('health');
@@ -598,7 +600,7 @@ export default function AddNoteModal() {
       };
     }
 
-    addNoteAndExtract(finalContent, '2026-05-26', extractedEvents, audioDetails);
+    addNoteAndExtract(finalContent, targetDate, extractedEvents, audioDetails);
     setShowReview(false);
     router.dismiss();
   };

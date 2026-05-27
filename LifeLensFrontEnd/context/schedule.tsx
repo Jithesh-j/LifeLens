@@ -40,6 +40,15 @@ interface ScheduleContextType {
 
 const ScheduleContext = createContext<ScheduleContextType | null>(null);
 
+// Helper to get today's date in local YYYY-MM-DD format
+export const getTodayDateStr = () => {
+  const today = new Date();
+  const yyyy = today.getFullYear();
+  const mm = String(today.getMonth() + 1).padStart(2, '0');
+  const dd = String(today.getDate()).padStart(2, '0');
+  return `${yyyy}-${mm}-${dd}`;
+};
+
 const INITIAL_SCHEDULE: ScheduleItem[] = [
   {
     id: '1',
@@ -122,7 +131,7 @@ const INITIAL_SCHEDULE: ScheduleItem[] = [
  * Smart Natural-Language parsing pipeline that extracts activities, categories, 
  * times, default durations, relative day contexts, and confidence levels.
  */
-export function parseNotesToEvents(text: string, dateStr = '2026-05-26'): ScheduleItem[] {
+export function parseNotesToEvents(text: string, dateStr = getTodayDateStr()): ScheduleItem[] {
   const events: ScheduleItem[] = [];
   if (!text.trim()) return events;
 
@@ -476,7 +485,7 @@ export function ScheduleProvider({ children }: { children: React.ReactNode }) {
 
   const addNoteAndExtract = (
     text: string, 
-    dateStr = '2026-05-26', 
+    dateStr = getTodayDateStr(), 
     approvedEvents?: ScheduleItem[],
     audioDetails?: { audioUri: string; durationSeconds: number; createdAt: string }
   ) => {

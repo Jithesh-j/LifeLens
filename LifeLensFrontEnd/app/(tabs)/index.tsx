@@ -1,17 +1,76 @@
 import React, { useState } from 'react';
 import { StyleSheet, View, ScrollView, TouchableOpacity } from 'react-native';
 import { useRouter } from 'expo-router';
-import { useSchedule } from '@/context/schedule';
+import { useSchedule, getTodayDateStr } from '@/context/schedule';
 import { useCalendarUI } from '@/context/calendar-ui';
 import { ThemedText } from '@/components/themed-text';
 import { useThemeColor } from '@/hooks/use-theme-color';
 import { IconSymbol } from '@/components/ui/icon-symbol';
 
+// Helper to get 7 days of the week containing a target date string
+const getDaysOfWeek = (targetDateStr: string) => {
+  const targetDate = new Date(targetDateStr + 'T00:00:00');
+  const dayOfWeek = targetDate.getDay(); // 0-6
+  const sunday = new Date(targetDate);
+  sunday.setDate(targetDate.getDate() - dayOfWeek);
+
+  const days = [];
+  const weekdayLabels = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
+
+  for (let i = 0; i < 7; i++) {
+    const day = new Date(sunday);
+    day.setDate(sunday.getDate() + i);
+    const yyyy = day.getFullYear();
+    const mm = String(day.getMonth() + 1).padStart(2, '0');
+    const dd = String(day.getDate()).padStart(2, '0');
+    days.push({
+      day: weekdayLabels[i],
+      dateNum: String(day.getDate()),
+      dateStr: `${yyyy}-${mm}-${dd}`,
+    });
+  }
+  return days;
+};
+
+// Helper to format Month and Year (e.g., "May 2026")
+const getMonthYearLabel = (dateStr: string) => {
+  const d = new Date(dateStr + 'T00:00:00');
+  return d.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+};
+
+// Helper to format short Timeline header (e.g., "Timeline • May 26")
+const getTimelineHeaderLabel = (dateStr: string) => {
+  const d = new Date(dateStr + 'T00:00:00');
+  return `Timeline • ${d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}`;
+};
+
+// Helper for human-readable labels: Today, Yesterday, Tomorrow or day name
+const getDayLabel = (dateStr: string) => {
+  const todayStr = getTodayDateStr();
+  if (dateStr === todayStr) {
+    return 'Today';
+  }
+  const today = new Date(todayStr + 'T00:00:00');
+  const target = new Date(dateStr + 'T00:00:00');
+  const diffTime = target.getTime() - today.getTime();
+  const diffDays = Math.round(diffTime / (1000 * 60 * 60 * 24));
+  if (diffDays === -1) {
+    return 'Yesterday';
+  } else if (diffDays === 1) {
+    return 'Tomorrow';
+  }
+  return target.toLocaleDateString('en-US', { weekday: 'long' });
+};
+
+const getFullDateLabel = (dateStr: string) => {
+  const d = new Date(dateStr + 'T00:00:00');
+  return d.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' });
+};
+
 export default function CalendarScreen() {
   const router = useRouter();
   const { scheduleItems, approveSuggestion } = useSchedule();
-  const { calendarExpanded, setCalendarExpanded } = useCalendarUI();
-  const [selectedDate, setSelectedDate] = useState('2026-05-26');
+  const { calendarExpanded, setCalendarExpanded, selectedDate, setSelectedDate } = useCalendarUI();
 
   // Themes & Styling Mappings
   const primaryColor = '#7C4DFF';
@@ -19,32 +78,39 @@ export default function CalendarScreen() {
   const accentGreen = '#4CAF50';
   const cardBg = useThemeColor({ light: '#F2F2F7', dark: '#1C1C1E' }, 'background');
 
-  // Hardcoded May 2026 monthly planner structure
-  const calendarDaysMonth = [
-    null, null, null, null, null,
-    '1', '2', '3', '4', '5', '6', '7', '8', '9', '10',
-    '11', '12', '13', '14', '15', '16', '17', '18', '19', '20',
-    '21', '22', '23', '24', '25', '26', '27', '28', '29', '30', '31'
-  ];
+  // Dynamic monthly planner structure based on selected date's month
+  const calendarDaysMonth = React.useMemo(() => {
+    const dateObj = new Date(selectedDate + 'T00:00:00');
+    const year = dateObj.getFullYear();
+    const month = dateObj.getMonth();
+    const firstDayIndex = new Date(year, month, 1).getDay();
+    const totalDays = new Date(year, month + 1, 0).getDate();
+    
+    const days: (string | null)[] = [];
+    for (let i = 0; i < firstDayIndex; i++) {
+      days.push(null);
+    }
+    for (let day = 1; day <= totalDays; day++) {
+      days.push(String(day));
+    }
+    return days;
+  }, [selectedDate]);
 
-  // Collapsed Weekday Strip Mock Data (May 2026)
-  const calendarDaysWeek = [
-    { day: 'S', dateNum: '24', dateStr: '2026-05-24' },
-    { day: 'M', dateNum: '25', dateStr: '2026-05-25' },
-    { day: 'T', dateNum: '26', dateStr: '2026-05-26' }, // Today
-    { day: 'W', dateNum: '27', dateStr: '2026-05-27' },
-    { day: 'T', dateNum: '28', dateStr: '2026-05-28' },
-    { day: 'F', dateNum: '29', dateStr: '2026-05-29' },
-    { day: 'S', dateNum: '30', dateStr: '2026-05-30' },
-  ];
+  // Dynamic Collapsed Weekday Strip based on the week containing selected date
+  const calendarDaysWeek = React.useMemo(() => {
+    return getDaysOfWeek(selectedDate);
+  }, [selectedDate]);
 
   const weekdayLabels = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
 
   // Helper to check if a monthly planner date cell has active events
   const dateHasEvents = (dayStr: string | null) => {
     if (!dayStr) return false;
+    const dateObj = new Date(selectedDate + 'T00:00:00');
+    const yyyy = dateObj.getFullYear();
+    const mm = String(dateObj.getMonth() + 1).padStart(2, '0');
     const formattedDay = dayStr.padStart(2, '0');
-    const fullDate = `2026-05-${formattedDay}`;
+    const fullDate = `${yyyy}-${mm}-${formattedDay}`;
     return scheduleItems.some(
       (item) => item.date === fullDate && (!item.isSuggested || item.isApproved)
     );
@@ -52,8 +118,11 @@ export default function CalendarScreen() {
 
   const handleDatePress = (dayStr: string | null) => {
     if (!dayStr) return;
+    const dateObj = new Date(selectedDate + 'T00:00:00');
+    const yyyy = dateObj.getFullYear();
+    const mm = String(dateObj.getMonth() + 1).padStart(2, '0');
     const formattedDay = dayStr.padStart(2, '0');
-    setSelectedDate(`2026-05-${formattedDay}`);
+    setSelectedDate(`${yyyy}-${mm}-${formattedDay}`);
   };
 
   // Filter and sort events chronologically by start_time ascending
@@ -65,9 +134,10 @@ export default function CalendarScreen() {
       return timeA.localeCompare(timeB);
     });
 
-  // Suggested item for today (May 26) that is NOT yet approved
+  // Suggested item for today that is NOT yet approved
+  const todayStr = getTodayDateStr();
   const pendingSuggestion = scheduleItems.find(
-    (item) => item.date === '2026-05-26' && item.isSuggested && !item.isApproved
+    (item) => item.date === todayStr && item.isSuggested && !item.isApproved
   );
 
   // Time Slots for Timeline Display in Collapsed Mode (sorted chronologically)
@@ -103,7 +173,7 @@ export default function CalendarScreen() {
         <View style={{ flex: 1 }}>
           <View style={[styles.headerSection, { backgroundColor: headerNavy }]}>
             <View style={styles.headerTop}>
-              <ThemedText style={styles.headerTitle}>May 2026</ThemedText>
+              <ThemedText style={styles.headerTitle}>{getMonthYearLabel(selectedDate)}</ThemedText>
               <TouchableOpacity style={styles.menuIcon} onPress={() => setCalendarExpanded(false)}>
                 <IconSymbol size={22} name="minus.circle.fill" color="#fff" />
               </TouchableOpacity>
@@ -118,8 +188,12 @@ export default function CalendarScreen() {
             <View style={styles.gridContainer}>
               {calendarDaysMonth.map((day, idx) => {
                 const formattedDay = day ? day.padStart(2, '0') : null;
-                const fullDate = formattedDay ? `2026-05-${formattedDay}` : '';
+                const dateObj = new Date(selectedDate + 'T00:00:00');
+                const yyyy = dateObj.getFullYear();
+                const mm = String(dateObj.getMonth() + 1).padStart(2, '0');
+                const fullDate = formattedDay ? `${yyyy}-${mm}-${formattedDay}` : '';
                 const isSelected = fullDate === selectedDate;
+                const isToday = fullDate === todayStr;
                 const hasEvents = dateHasEvents(day);
 
                 return (
@@ -127,11 +201,18 @@ export default function CalendarScreen() {
                     key={idx}
                     disabled={!day}
                     onPress={() => handleDatePress(day)}
-                    style={[styles.gridCell, isSelected && [styles.selectedCell, { backgroundColor: primaryColor }]]}>
+                    style={[
+                      styles.gridCell, 
+                      isSelected && [styles.selectedCell, { backgroundColor: primaryColor }],
+                      (!isSelected && isToday) && { borderWidth: 1.5, borderColor: primaryColor, borderRadius: 20 }
+                    ]}>
                     {day ? (
                       <>
-                        <ThemedText style={[styles.dayText, isSelected && styles.selectedDayText]}>{day}</ThemedText>
-                        {hasEvents && <View style={[styles.eventDot, { backgroundColor: isSelected ? '#fff' : primaryColor }]} />}
+                        <ThemedText style={[
+                          styles.dayText, 
+                          isSelected && styles.selectedDayText,
+                          (!isSelected && isToday) && { color: primaryColor, fontWeight: '800' }
+                        ]}>{day}</ThemedText>
                       </>
                     ) : null}
                   </TouchableOpacity>
@@ -189,7 +270,7 @@ export default function CalendarScreen() {
         <View style={{ flex: 1 }}>
           <View style={[styles.headerSection, { backgroundColor: headerNavy }]}>
             <View style={styles.headerTop}>
-              <ThemedText style={styles.headerTitle}>Timeline • May 26</ThemedText>
+              <ThemedText style={styles.headerTitle}>{getTimelineHeaderLabel(selectedDate)}</ThemedText>
               <TouchableOpacity style={styles.menuIcon} onPress={() => setCalendarExpanded(true)}>
                 <IconSymbol size={22} name="plus.circle.fill" color="#fff" />
               </TouchableOpacity>
@@ -198,13 +279,26 @@ export default function CalendarScreen() {
             <View style={styles.calendarStrip}>
               {calendarDaysWeek.map((item, idx) => {
                 const isSelected = item.dateStr === selectedDate;
+                const isToday = item.dateStr === todayStr;
                 return (
                   <TouchableOpacity
                     key={idx}
-                    style={[styles.dayCard, isSelected && [styles.selectedDayCard, { backgroundColor: primaryColor }]]}
+                    style={[
+                      styles.dayCard, 
+                      isSelected && [styles.selectedDayCard, { backgroundColor: primaryColor }],
+                      (!isSelected && isToday) && { borderWidth: 1.5, borderColor: primaryColor }
+                    ]}
                     onPress={() => setSelectedDate(item.dateStr)}>
-                    <ThemedText style={[styles.dayName, isSelected && styles.selectedDayText]}>{item.day}</ThemedText>
-                    <ThemedText style={[styles.dayNum, isSelected && styles.selectedDayText]}>{item.dateNum}</ThemedText>
+                    <ThemedText style={[
+                      styles.dayName, 
+                      isSelected && styles.selectedDayText,
+                      (!isSelected && isToday) && { color: primaryColor, fontWeight: '700' }
+                    ]}>{item.day}</ThemedText>
+                    <ThemedText style={[
+                      styles.dayNum, 
+                      isSelected && styles.selectedDayText,
+                      (!isSelected && isToday) && { color: primaryColor, fontWeight: '800' }
+                    ]}>{item.dateNum}</ThemedText>
                   </TouchableOpacity>
                 );
               })}
@@ -213,11 +307,11 @@ export default function CalendarScreen() {
 
           <ScrollView contentContainerStyle={styles.timelineScroll} showsVerticalScrollIndicator={false}>
             <View style={styles.todayHeaderBox}>
-              <ThemedText style={styles.todayTitle}>Today</ThemedText>
-              <ThemedText style={styles.todayDateSub}>Tuesday, May 26, 2026</ThemedText>
+              <ThemedText style={styles.todayTitle}>{getDayLabel(selectedDate)}</ThemedText>
+              <ThemedText style={styles.todayDateSub}>{getFullDateLabel(selectedDate)}</ThemedText>
             </View>
 
-            {selectedDate === '2026-05-26' && pendingSuggestion && (
+            {selectedDate === todayStr && pendingSuggestion && (
               <View style={[styles.suggestionBanner, { backgroundColor: '#E8F5E9' }]}>
                 <View style={styles.suggestionLeft}>
                   <IconSymbol size={22} name="gym" color={accentGreen} style={{ marginRight: 8 }} />
