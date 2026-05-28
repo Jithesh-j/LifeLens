@@ -17,6 +17,7 @@ import { useSchedule, getTodayDateStr, ScheduleItem } from '@/context/schedule';
 import { useGoogleCalendar, GoogleCalendarEvent } from '@/context/google-calendar';
 import { ThemedText } from '@/components/themed-text';
 import { IconSymbol } from '@/components/ui/icon-symbol';
+import { api } from '@/services/api';
 
 const SCREEN_WIDTH = Dimensions.get('window').width;
 
@@ -438,10 +439,19 @@ export default function HomeScreen() {
 
       const timeRangeStr = `${selectedHour}:${selectedMin} ${selectedAmPm} - ${formatTime12h(endISO)}`;
       const details = getLocalEventDetails(eventTitle);
+      
+      // Construct a natural language sentence so it parses back perfectly from the database
+      const sentence = `${eventTitle} at ${selectedHour}:${selectedMin} ${selectedAmPm} for ${selectedDuration} minutes`;
 
       if (targetCalendar === 'google') {
         const success = await createGoogleEvent(eventTitle, startISO, endISO);
         if (success) {
+          try {
+            await api.createActivity(sentence, `${todayStr}T12:00:00`);
+            console.log('Successfully saved Google-synced event to local backend database!');
+          } catch (err) {
+            console.error('Failed to sync event to backend:', err);
+          }
           showToast('Event added successfully');
           setIsModalOpen(false);
         } else {
@@ -459,7 +469,15 @@ export default function HomeScreen() {
             endTime: endISO,
             isAiExtracted: false,
           };
-          addNoteAndExtract(eventTitle, todayStr, [newLocalItem]);
+          
+          try {
+            await api.createActivity(sentence, `${todayStr}T12:00:00`);
+            console.log('Successfully saved local fallback event to backend database!');
+          } catch (err) {
+            console.error('Failed to save event to backend:', err);
+          }
+
+          addNoteAndExtract(sentence, todayStr, [newLocalItem]);
           setIsModalOpen(false);
         }
       } else {
@@ -475,7 +493,15 @@ export default function HomeScreen() {
           endTime: endISO,
           isAiExtracted: false,
         };
-        addNoteAndExtract(eventTitle, todayStr, [newLocalItem]);
+
+        try {
+          await api.createActivity(sentence, `${todayStr}T12:00:00`);
+          console.log('Successfully saved local event to backend database!');
+        } catch (err) {
+          console.error('Failed to save event to backend:', err);
+        }
+
+        addNoteAndExtract(sentence, todayStr, [newLocalItem]);
         showToast('Event added successfully');
         setIsModalOpen(false);
       }

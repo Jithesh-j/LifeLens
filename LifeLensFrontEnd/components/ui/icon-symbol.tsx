@@ -23,6 +23,7 @@ const MAPPING = {
   'eyes': 'visibility',
   'exclamationmark.circle.fill': 'error',
   'plus.circle.fill': 'add-circle',
+  'plus': 'add',
   'minus.circle.fill': 'remove-circle',
   'mic.fill': 'mic',
   'play.fill': 'play-arrow',

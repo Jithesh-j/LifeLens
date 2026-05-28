@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
+import * as SecureStore from 'expo-secure-store';
 import { api } from '@/services/api';
 import { useAuth } from '@/context/auth';
 
@@ -434,6 +435,34 @@ export function ScheduleProvider({ children }: { children: React.ReactNode }) {
   const [scheduleItems, setScheduleItems] = useState<ScheduleItem[]>([]);
   const { token } = useAuth();
 
+  // Load offline local backup on mount
+  useEffect(() => {
+    async function loadLocalBackup() {
+      try {
+        const backupStr = await SecureStore.getItemAsync('local_activities_backup');
+        if (backupStr) {
+          const backupItems = JSON.parse(backupStr) as ScheduleItem[];
+          console.log('💾 [Offline Backup] Loaded local backup:', backupItems.length, 'items');
+          setScheduleItems((prev) => {
+            const merged = [...prev];
+            backupItems.forEach((backup) => {
+              const exists = merged.some(
+                (item) => item.date === backup.date && item.title.toLowerCase() === backup.title.toLowerCase() && item.startTime === backup.startTime
+              );
+              if (!exists) {
+                merged.push(backup);
+              }
+            });
+            return merged;
+          });
+        }
+      } catch (err) {
+        console.error('Failed to load local backup from SecureStore:', err);
+      }
+    }
+    loadLocalBackup();
+  }, []);
+
   const fetchUserSchedule = async () => {
     if (!token) {
       setScheduleItems([]);
@@ -461,7 +490,25 @@ export function ScheduleProvider({ children }: { children: React.ReactNode }) {
         }
       });
 
-      setScheduleItems(uniqueEvents);
+      // Merge backend items with the current list (preserving offline local additions)
+      setScheduleItems((prev) => {
+        const merged = [...prev];
+        uniqueEvents.forEach((fe) => {
+          const exists = merged.some(
+            (item) => item.date === fe.date && item.title.toLowerCase() === fe.title.toLowerCase() && item.startTime === fe.startTime
+          );
+          if (!exists) {
+            merged.push(fe);
+          }
+        });
+
+        // Sync consolidated list back to local backup
+        SecureStore.setItemAsync('local_activities_backup', JSON.stringify(merged)).catch((err) => {
+          console.error('Failed to save local backup from merge:', err);
+        });
+
+        return merged;
+      });
     } catch (e) {
       console.error('Failed to fetch user schedule', e);
     }
@@ -472,15 +519,21 @@ export function ScheduleProvider({ children }: { children: React.ReactNode }) {
   }, [token]);
 
   const approveSuggestion = (id: string) => {
-    setScheduleItems((prev) =>
-      prev.map((item) => {
+    setScheduleItems((prev) => {
+      const updated = prev.map((item) => {
         if (item.id === id) {
           const cleanTitle = item.title.replace('Suggested: ', '');
           return { ...item, title: cleanTitle, isApproved: true };
         }
         return item;
-      })
-    );
+      });
+
+      SecureStore.setItemAsync('local_activities_backup', JSON.stringify(updated)).catch((err) => {
+        console.error('Failed to save local backup:', err);
+      });
+
+      return updated;
+    });
   };
 
   const addNoteAndExtract = (
@@ -505,7 +558,14 @@ export function ScheduleProvider({ children }: { children: React.ReactNode }) {
           (n) => n.date === item.date && n.title.toLowerCase() === item.title.toLowerCase() && n.startTime === item.startTime
         )
       );
-      return [...eventsWithAudio, ...cleanedPrev];
+      const updated = [...eventsWithAudio, ...cleanedPrev];
+
+      // Save local backup to SecureStore
+      SecureStore.setItemAsync('local_activities_backup', JSON.stringify(updated)).catch((err) => {
+        console.error('Failed to save local activities backup:', err);
+      });
+
+      return updated;
     });
   };
 
