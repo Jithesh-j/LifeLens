@@ -45,6 +45,13 @@ const MAPPING = {
   'moon.fill': 'nightlight-round',
   'sun.max.fill': 'wb-sunny',
   'bolt.fill': 'flash-on',
+  'bell.fill': 'notifications',
+  'link': 'link',
+  'figure.pool.swim': 'pool',
+  'figure.run': 'directions-run',
+  'sportscourt.fill': 'sports-tennis',
+  'xmark': 'close',
+  'checkmark': 'check',
 } as const;
 
 /**

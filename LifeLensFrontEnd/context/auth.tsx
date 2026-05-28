@@ -53,8 +53,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       // Redirect to login
       router.replace('/(auth)/login');
     } else if (token && inAuthGroup) {
-      // Redirect to main tabs
-      router.replace('/(tabs)');
+      // Redirect to home screen
+      router.replace('/(tabs)/home');
     }
   }, [token, segments, isLoading]);
 

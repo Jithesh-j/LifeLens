@@ -140,18 +140,48 @@ export default function CalendarScreen() {
     (item) => item.date === todayStr && item.isSuggested && !item.isApproved
   );
 
-  // Time Slots for Timeline Display in Collapsed Mode (sorted chronologically)
-  const timeSlots = [
-    { label: '7:00 AM', hourKey: '7' },
-    { label: '9:00 AM', hourKey: '9' },
-    { label: '11:30 AM', hourKey: '11' },
-    { label: '12:00 PM', hourKey: '12' },
-    { label: '1:00 PM', hourKey: '13' },
-    { label: '2:00 PM', hourKey: '14' },
-    { label: '4:00 PM', hourKey: '16' },
-    { label: '5:00 PM', hourKey: '17' },
-    { label: '6:00 PM', hourKey: '18' },
-  ];
+  // Dynamic Time Slots generation for chronological Timeline Display (sorted chronologically)
+  const dynamicTimeSlots = React.useMemo(() => {
+    const baseSlots = [
+      { label: '7:00 AM', hourKey: '7' },
+      { label: '9:00 AM', hourKey: '9' },
+      { label: '11:30 AM', hourKey: '11.5' },
+      { label: '12:00 PM', hourKey: '12' },
+      { label: '1:00 PM', hourKey: '13' },
+      { label: '2:00 PM', hourKey: '14' },
+      { label: '4:00 PM', hourKey: '16' },
+      { label: '5:00 PM', hourKey: '17' },
+      { label: '6:00 PM', hourKey: '18' },
+    ];
+
+    const slots = [...baseSlots];
+
+    filteredEvents.forEach((event) => {
+      const timeRange = event.timeRange || '';
+      const startStr = timeRange.split(' - ')[0]?.trim();
+      if (!startStr) return;
+
+      const matchesExisting = slots.some(s => s.label.toLowerCase() === startStr.toLowerCase());
+      if (!matchesExisting) {
+        const timePart = startStr.split(' ')[0] || '';
+        const ampm = startStr.split(' ')[1] || 'AM';
+        const parts = timePart.split(':');
+        let h = parseInt(parts[0]) || 0;
+        const m = parseInt(parts[1]) || 0;
+        if (ampm.toUpperCase() === 'PM' && h < 12) h += 12;
+        if (ampm.toUpperCase() === 'AM' && h === 12) h = 0;
+        const hourDecimal = h + (m / 60);
+
+        slots.push({
+          label: startStr,
+          hourKey: String(hourDecimal),
+        });
+      }
+    });
+
+    slots.sort((a, b) => parseFloat(a.hourKey) - parseFloat(b.hourKey));
+    return slots;
+  }, [filteredEvents]);
 
   // Card Color Theme builder
   const getCardStyles = (color: string) => {
@@ -328,18 +358,34 @@ export default function CalendarScreen() {
 
             <ThemedText style={styles.timelineSectionTitle}>Upcoming Schedule</ThemedText>
 
-            {timeSlots.map((slot, index) => {
+            {dynamicTimeSlots.map((slot, index) => {
               const matchedEvents = filteredEvents.filter((item) => {
-                const startStr = item.timeRange.split(' - ')[0];
-                if (slot.label === '7:00 AM') return startStr.startsWith('7:') && startStr.includes('AM');
-                if (slot.label === '9:00 AM') return startStr.startsWith('9:') && startStr.includes('AM');
-                if (slot.label === '11:30 AM') return startStr.startsWith('11:30') && startStr.includes('AM');
-                if (slot.label === '12:00 PM') return startStr.startsWith('12:') && startStr.includes('PM');
-                if (slot.label === '1:00 PM') return startStr.startsWith('1:') && startStr.includes('PM');
-                if (slot.label === '2:00 PM') return startStr.startsWith('2:') && startStr.includes('PM');
-                if (slot.label === '4:00 PM') return startStr.startsWith('4:') && startStr.includes('PM');
-                if (slot.label === '5:00 PM') return startStr.startsWith('5:') && startStr.includes('PM');
-                if (slot.label === '6:00 PM') return startStr.startsWith('6:') && startStr.includes('PM');
+                const startStr = item.timeRange.split(' - ')[0]?.trim() || '';
+                
+                // If there's an exact match on label, use it!
+                if (slot.label === startStr) return true;
+
+                // Fallback for bucket matching of base slots:
+                // e.g. if the slot is "7:00 AM" and the event start is "7:30 AM", AND there is no specific "7:30 AM" slot in the timeline.
+                const isBaseSlot = ['7:00 AM', '9:00 AM', '11:30 AM', '12:00 PM', '1:00 PM', '2:00 PM', '4:00 PM', '5:00 PM', '6:00 PM'].includes(slot.label);
+                if (isBaseSlot) {
+                  // Check if there is an exact slot in dynamicTimeSlots for this event's startStr.
+                  // If there is, let that exact slot handle it (return false here).
+                  const hasExactSlot = dynamicTimeSlots.some(s => s.label === startStr);
+                  if (hasExactSlot) return false;
+
+                  // Otherwise, bucket match based on hour!
+                  if (slot.label === '7:00 AM') return startStr.startsWith('7:') && startStr.includes('AM');
+                  if (slot.label === '9:00 AM') return startStr.startsWith('9:') && startStr.includes('AM');
+                  if (slot.label === '11:30 AM') return startStr.startsWith('11:30') && startStr.includes('AM');
+                  if (slot.label === '12:00 PM') return startStr.startsWith('12:') && startStr.includes('PM');
+                  if (slot.label === '1:00 PM') return startStr.startsWith('1:') && startStr.includes('PM');
+                  if (slot.label === '2:00 PM') return startStr.startsWith('2:') && startStr.includes('PM');
+                  if (slot.label === '4:00 PM') return startStr.startsWith('4:') && startStr.includes('PM');
+                  if (slot.label === '5:00 PM') return startStr.startsWith('5:') && startStr.includes('PM');
+                  if (slot.label === '6:00 PM') return startStr.startsWith('6:') && startStr.includes('PM');
+                }
+
                 return false;
               });
 
@@ -350,7 +396,7 @@ export default function CalendarScreen() {
                   </View>
                   <View style={styles.nodeContainer}>
                     <View style={[styles.nodeDot, { borderColor: primaryColor }]} />
-                    {index < timeSlots.length - 1 && <View style={[styles.nodeLine, { backgroundColor: primaryColor + '20' }]} />}
+                    {index < dynamicTimeSlots.length - 1 && <View style={[styles.nodeLine, { backgroundColor: primaryColor + '20' }]} />}
                   </View>
                   <View style={styles.cardsContainer}>
                     {matchedEvents.length > 0 ? (
