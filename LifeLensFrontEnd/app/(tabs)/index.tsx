@@ -992,7 +992,7 @@ export default function HomeScreen() {
                     </ThemedText>
                     {ev.weather && (
                       <ThemedText style={{ fontSize: 11, color: 'rgba(255, 255, 255, 0.5)', marginTop: 2 }}>
-                        {getWeatherEmoji(ev.weather.condition)} {ev.weather.condition} • {Math.round(ev.weather.temperature_c)}°C
+                        {getWeatherEmoji(ev.weather.condition)} {ev.weather.condition} • {Math.round(ev.weather.temperature_c)}°C / {Math.round(ev.weather.temperature_f)}°F
                       </ThemedText>
                     )}
                   </View>

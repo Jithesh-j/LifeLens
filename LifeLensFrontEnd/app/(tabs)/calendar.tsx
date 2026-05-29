@@ -315,7 +315,7 @@ export default function CalendarScreen() {
                         )}
                         {event.weather && (
                           <ThemedText style={{ fontSize: 12, color: theme.text + '80', marginTop: 4, fontWeight: '500' }}>
-                            {getWeatherEmoji(event.weather.condition)} {event.weather.condition} • {Math.round(event.weather.temperature_c)}°C
+                            {getWeatherEmoji(event.weather.condition)} {event.weather.condition} • {Math.round(event.weather.temperature_c)}°C / {Math.round(event.weather.temperature_f)}°F
                           </ThemedText>
                         )}
                       </View>
@@ -463,7 +463,7 @@ export default function CalendarScreen() {
                               )}
                               {event.weather && (
                                 <ThemedText style={{ fontSize: 12, color: theme.text + '80', marginTop: 4, fontWeight: '500' }}>
-                                  {getWeatherEmoji(event.weather.condition)} {event.weather.condition} • {Math.round(event.weather.temperature_c)}°C
+                                  {getWeatherEmoji(event.weather.condition)} {event.weather.condition} • {Math.round(event.weather.temperature_c)}°C / {Math.round(event.weather.temperature_f)}°F
                                 </ThemedText>
                               )}
                             </View>
