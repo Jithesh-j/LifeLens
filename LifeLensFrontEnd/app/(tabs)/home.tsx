@@ -11,26 +11,28 @@ import {
   TextInput,
   ActivityIndicator,
 } from 'react-native';
-import { useRouter } from 'expo-router';
+import { useRouter, useNavigation } from 'expo-router';
+import * as SecureStore from 'expo-secure-store';
 import { useAuth } from '@/context/auth';
 import { useSchedule, getTodayDateStr, ScheduleItem } from '@/context/schedule';
 import { useGoogleCalendar, GoogleCalendarEvent } from '@/context/google-calendar';
 import { ThemedText } from '@/components/themed-text';
 import { IconSymbol } from '@/components/ui/icon-symbol';
 import { api } from '@/services/api';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 const SCREEN_WIDTH = Dimensions.get('window').width;
 
 // ── Premium Dark-Mode Colors ────────────────────────────────────────────────
 const PURPLE = '#8F66FF';
 const LIGHT_PURPLE = '#C4A8FF';
-const DARK_BG = '#0A0C1B';
-const CARD_BG = '#161932';
-const GLASS_BORDER = 'rgba(255, 255, 255, 0.14)';
-const GREEN = '#81C784';
-const BLUE = '#64B5F6';
-const AMBER = '#FFB74D';
-const RED = '#E57373';
+const DARK_BG = '#080916';
+const CARD_BG = '#11132A';
+const GLASS_BORDER = 'rgba(255, 255, 255, 0.06)';
+const GREEN = '#34D399';
+const BLUE = '#3B82F6';
+const AMBER = '#F59E0B';
+const RED = '#EF4444';
 
 // ── Time-Based Greeting ─────────────────────────────────────────────────────
 function getGreeting(): { text: string; emoji: string; icon: 'sun.max.fill' | 'bolt.fill' | 'moon.fill' } {
@@ -346,9 +348,156 @@ function getLocalEventDetails(title: string): {
 // ═════════════════════════════════════════════════════════════════════════════
 export default function HomeScreen() {
   const { user } = useAuth();
+  const insets = useSafeAreaInsets();
   const { scheduleItems } = useSchedule();
   const { googleEvents, isSignedIn, signIn } = useGoogleCalendar();
   const router = useRouter();
+  const navigation = useNavigation();
+
+  // Location Suggestion states
+  const [locEnabled, setLocEnabled] = useState(false);
+  const [smartNotifs, setSmartNotifs] = useState(false);
+  const [pendingLocationSugg, setPendingLocationSugg] = useState<any | null>(null);
+
+  // Edit suggested activity states
+  const [showLocEditModal, setShowLocEditModal] = useState(false);
+  const [locEditTitle, setLocEditTitle] = useState('');
+  const [locEditDuration, setLocEditDuration] = useState('');
+  const [locEditActivity, setLocEditActivity] = useState('');
+
+  const loadLocationSuggestion = async () => {
+    if (!user) return;
+    try {
+      const settings = await api.getUserSettings();
+      const locEnabled = settings.location_enabled;
+      const smartEnabled = settings.smart_activity_detection;
+      const notifsEnabled = settings.smart_notifications;
+
+      const simActiveKey = `${user.id}_simulated_suggestion_active`;
+      const simDataKey = `${user.id}_simulated_suggestion_data`;
+      const simActive = await SecureStore.getItemAsync(simActiveKey);
+      const simData = await SecureStore.getItemAsync(simDataKey);
+
+      setLocEnabled(locEnabled);
+      setSmartNotifs(locEnabled && smartEnabled && notifsEnabled);
+
+      if (locEnabled && smartEnabled && notifsEnabled && simActive === 'true' && simData) {
+        setPendingLocationSugg(JSON.parse(simData));
+      } else {
+        setPendingLocationSugg(null);
+      }
+    } catch (err) {
+      console.warn('Failed to load location suggestions on home focus:', err);
+    }
+  };
+
+  useEffect(() => {
+    if (user) {
+      loadLocationSuggestion();
+    }
+    const unsubscribe = navigation.addListener('focus', () => {
+      if (user) {
+        loadLocationSuggestion();
+      }
+    });
+    return unsubscribe;
+  }, [navigation, user]);
+
+  const clearLocationSuggestion = async () => {
+    setPendingLocationSugg(null);
+    if (user) {
+      await SecureStore.deleteItemAsync(`${user.id}_simulated_suggestion_active`);
+      await SecureStore.deleteItemAsync(`${user.id}_simulated_suggestion_data`);
+    }
+  };
+
+  const handleAddLocationToTimeline = async () => {
+    if (!pendingLocationSugg) return;
+    try {
+      const sentence = `Spent ${pendingLocationSugg.durationMinutes} minutes at ${pendingLocationSugg.placeName} (${pendingLocationSugg.inferredActivity})`;
+      
+      // Save to backend database
+      await api.createActivity(sentence, `${pendingLocationSugg.date}T12:00:00`);
+      // Extract and save to local schedule
+      addNoteAndExtract(sentence, pendingLocationSugg.date);
+
+      showToast('Added to Timeline');
+      await clearLocationSuggestion();
+    } catch (err) {
+      console.error(err);
+      showToast('Failed to log activity');
+    }
+  };
+
+  const handleAddLocationToEvents = () => {
+    if (!pendingLocationSugg) return;
+    
+    // Prefill the Quick Event Modal
+    setEventTitle(`${pendingLocationSugg.inferredActivity} (${pendingLocationSugg.placeName})`);
+    
+    // Set time details
+    setSelectedHour('10');
+    setSelectedMin('30');
+    setSelectedAmPm('AM');
+    setSelectedDuration(pendingLocationSugg.durationMinutes);
+    setTargetCalendar(isSignedIn ? 'google' : 'local');
+    setIsModalOpen(true);
+    
+    // Clear simulated suggestions once modal pops up
+    clearLocationSuggestion();
+  };
+
+  const handleOpenLocEdit = () => {
+    if (!pendingLocationSugg) return;
+    setLocEditTitle(pendingLocationSugg.placeName);
+    setLocEditDuration(String(pendingLocationSugg.durationMinutes));
+    setLocEditActivity(pendingLocationSugg.inferredActivity);
+    setShowLocEditModal(true);
+  };
+
+  const handleSaveLocEdit = async () => {
+    if (!pendingLocationSugg) return;
+    
+    let category = 'other';
+    let icon = 'rest';
+    let color = 'gray';
+    const lower = locEditActivity.toLowerCase();
+
+    if (lower.includes('walk') || lower.includes('hike') || lower.includes('jog') || lower.includes('run')) {
+      category = 'health';
+      icon = 'walk';
+      color = 'green';
+    } else if (lower.includes('gym') || lower.includes('workout') || lower.includes('exercise')) {
+      category = 'health';
+      icon = 'gym';
+      color = 'green';
+    } else if (lower.includes('work') || lower.includes('study') || lower.includes('code') || lower.includes('meeting')) {
+      category = 'work';
+      icon = 'laptop';
+      color = 'purple';
+    } else if (lower.includes('cafe') || lower.includes('coffee') || lower.includes('lunch') || lower.includes('dinner')) {
+      category = 'social';
+      icon = 'rest';
+      color = 'yellow';
+    }
+
+    const updated = {
+      ...pendingLocationSugg,
+      placeName: locEditTitle,
+      durationMinutes: parseInt(locEditDuration) || 30,
+      inferredActivity: locEditActivity,
+      category,
+      icon,
+      color,
+    };
+
+    setPendingLocationSugg(updated);
+    if (user) {
+      await SecureStore.setItemAsync(`${user.id}_simulated_suggestion_data`, JSON.stringify(updated));
+    }
+    setShowLocEditModal(false);
+    showToast('Activity Inferences Updated');
+  };
 
   const todayStr = getTodayDateStr();
   const greeting = useMemo(() => getGreeting(), []);
@@ -531,7 +680,13 @@ export default function HomeScreen() {
       <View style={s.glowCircle1} />
       <View style={s.glowCircle2} />
 
-      <ScrollView contentContainerStyle={s.scrollContent} showsVerticalScrollIndicator={false}>
+      <ScrollView 
+        contentContainerStyle={[
+          s.scrollContent, 
+          { paddingTop: insets.top > 0 ? insets.top + 32 : 80 }
+        ]} 
+        showsVerticalScrollIndicator={false}
+      >
         {/* ── Greeting Header ──────────────────────────────────────────── */}
         <FadeSlide index={0}>
           <View style={s.greetingSection}>
@@ -550,6 +705,54 @@ export default function HomeScreen() {
             </View>
           </View>
         </FadeSlide>
+
+        {/* ── LOCATION INTELLIGENCE AMBIENT SUGGESTION CARD ─────────────── */}
+        {pendingLocationSugg && (
+          <FadeSlide index={0.5}>
+            <View style={s.locSuggestionCard}>
+              <View style={s.locNotifHeader}>
+                <IconSymbol size={20} name="location.fill" color={PURPLE} />
+                <ThemedText style={s.locNotifTitle}>📍 Location Inferred Activity</ThemedText>
+                <TouchableOpacity onPress={clearLocationSuggestion} style={s.locNotifClose}>
+                  <IconSymbol size={18} name="xmark" color="#FFF" style={{ opacity: 0.5 }} />
+                </TouchableOpacity>
+              </View>
+
+              <ThemedText style={s.locNotifMsg}>
+                We noticed you spent <ThemedText style={{ fontWeight: 'bold', color: LIGHT_PURPLE }}>1h 20m</ThemedText> at <ThemedText style={{ fontWeight: 'bold' }}>{pendingLocationSugg.placeName}</ThemedText>. Would you like to add this as an activity?
+              </ThemedText>
+
+              <View style={s.locNotifMetaRow}>
+                <ThemedText style={s.locNotifMetaLabel}>
+                  Suggested: <ThemedText style={{ fontWeight: '700', color: GREEN }}>{pendingLocationSugg.inferredActivity}</ThemedText>
+                </ThemedText>
+              </View>
+
+              {/* Actions Grid */}
+              <View style={s.locActionsGrid}>
+                <TouchableOpacity style={s.locActionBtn} onPress={handleAddLocationToTimeline}>
+                  <IconSymbol size={14} name="paperplane.fill" color={BLUE} />
+                  <ThemedText style={s.locActionBtnText}>Add Timeline</ThemedText>
+                </TouchableOpacity>
+
+                <TouchableOpacity style={s.locActionBtn} onPress={handleAddLocationToEvents}>
+                  <IconSymbol size={14} name="calendar" color={GREEN} />
+                  <ThemedText style={s.locActionBtnText}>Add Calendar</ThemedText>
+                </TouchableOpacity>
+              </View>
+
+              <View style={s.locActionsGrid2}>
+                <TouchableOpacity style={s.locActionBtnSmall} onPress={handleOpenLocEdit}>
+                  <ThemedText style={s.locActionBtnTextSmall}>Edit Activity</ThemedText>
+                </TouchableOpacity>
+
+                <TouchableOpacity style={s.locActionBtnSmall} onPress={clearLocationSuggestion}>
+                  <ThemedText style={[s.locActionBtnTextSmall, { color: RED }]}>Ignore</ThemedText>
+                </TouchableOpacity>
+              </View>
+            </View>
+          </FadeSlide>
+        )}
 
         {/* ── AI Suggestion Card ───────────────────────────────────────── */}
         <FadeSlide index={1}>
@@ -592,7 +795,7 @@ export default function HomeScreen() {
                 <View style={s.suggestionActions}>
                   <TouchableOpacity
                     style={s.suggestionPrimaryBtn}
-                    onPress={() => handleAiSuggestionClick(analytics.bestSuggestion.text)}>
+                    onPress={() => analytics.bestSuggestion && handleAiSuggestionClick(analytics.bestSuggestion.text)}>
                     <ThemedText style={s.suggestionPrimaryBtnText}>Add to Calendar</ThemedText>
                   </TouchableOpacity>
                   <TouchableOpacity
@@ -880,6 +1083,54 @@ export default function HomeScreen() {
           </View>
         </Animated.View>
       )}
+
+      {/* ── Location intelligence edit activity modal overlay ────────────────── */}
+      {showLocEditModal && (
+        <View style={s.locEditBg}>
+          <View style={s.locEditCard}>
+            <View style={s.locEditHeader}>
+              <ThemedText style={s.locEditTitle}>Edit Location Activity</ThemedText>
+              <TouchableOpacity onPress={() => setShowLocEditModal(false)}>
+                <IconSymbol size={24} name="xmark" color="#FFF" />
+              </TouchableOpacity>
+            </View>
+
+            <View style={s.locEditBody}>
+              <ThemedText style={s.locInputLabel}>Place Name</ThemedText>
+              <TextInput
+                style={s.locTextInput}
+                value={locEditTitle}
+                onChangeText={setLocEditTitle}
+                placeholder="e.g. Discovery Park"
+                placeholderTextColor="rgba(255,255,255,0.4)"
+              />
+
+              <ThemedText style={s.locInputLabel}>Inferred Activity Type</ThemedText>
+              <TextInput
+                style={s.locTextInput}
+                value={locEditActivity}
+                onChangeText={setLocEditActivity}
+                placeholder="e.g. Walking / Jogging"
+                placeholderTextColor="rgba(255,255,255,0.4)"
+              />
+
+              <ThemedText style={s.locInputLabel}>Stay Duration (Minutes)</ThemedText>
+              <TextInput
+                style={s.locTextInput}
+                value={locEditDuration}
+                onChangeText={setLocEditDuration}
+                keyboardType="numeric"
+                placeholder="80"
+                placeholderTextColor="rgba(255,255,255,0.4)"
+              />
+
+              <TouchableOpacity style={s.locSaveEditBtn} onPress={handleSaveLocEdit}>
+                <ThemedText style={s.locSaveEditBtnText}>Apply Inferred Settings</ThemedText>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      )}
     </View>
   );
 }
@@ -893,12 +1144,12 @@ const s = StyleSheet.create({
   glowCircle1: { position: 'absolute', top: 80, left: -60, width: 220, height: 220, borderRadius: 110, backgroundColor: 'rgba(143, 102, 255, 0.05)' },
   glowCircle2: { position: 'absolute', bottom: 120, right: -50, width: 240, height: 240, borderRadius: 120, backgroundColor: 'rgba(100, 181, 246, 0.04)' },
 
-  scrollContent: { paddingTop: 60, paddingHorizontal: 20, paddingBottom: 40, gap: 20 },
+  scrollContent: { paddingHorizontal: 20, paddingBottom: 130, gap: 20 },
 
   // Greeting
   greetingSection: { marginBottom: 4 },
   greetingTopRow: { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between' },
-  greetingText: { color: '#fff', fontSize: 24, fontWeight: '800', letterSpacing: -0.3 },
+  greetingText: { color: '#fff', fontSize: 24, fontWeight: '800', letterSpacing: -0.3, lineHeight: 32, paddingTop: 4 },
   dateLabel: { color: '#D2D2E6', fontSize: 14, fontWeight: '600', marginTop: 4 },
   notifBadge: { width: 42, height: 42, borderRadius: 21, backgroundColor: 'rgba(143, 102, 255, 0.12)', justifyContent: 'center', alignItems: 'center', marginTop: 2 },
 
@@ -1238,5 +1489,145 @@ const s = StyleSheet.create({
     color: '#fff',
     fontSize: 13,
     fontWeight: '800',
+  },
+  // Location Intelligence Suggestion styles
+  locSuggestionCard: {
+    borderRadius: 24,
+    padding: 20,
+    backgroundColor: '#1E2142',
+    borderWidth: 1.5,
+    borderColor: 'rgba(143, 102, 255, 0.25)',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.4,
+    shadowRadius: 16,
+    elevation: 8,
+    gap: 12,
+    marginBottom: 8,
+  },
+  locNotifHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  locNotifTitle: {
+    fontSize: 14,
+    fontWeight: '800',
+    color: LIGHT_PURPLE,
+    flex: 1,
+  },
+  locNotifClose: {
+    padding: 4,
+  },
+  locNotifMsg: {
+    fontSize: 14,
+    color: '#FFF',
+    lineHeight: 20,
+  },
+  locNotifMetaRow: {
+    flexDirection: 'row',
+  },
+  locNotifMetaLabel: {
+    fontSize: 12,
+    opacity: 0.6,
+    color: '#FFF',
+  },
+  locActionsGrid: {
+    flexDirection: 'row',
+    gap: 8,
+    marginTop: 4,
+  },
+  locActionsGrid2: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  locActionBtn: {
+    flex: 1,
+    flexDirection: 'row',
+    height: 38,
+    borderRadius: 10,
+    backgroundColor: 'rgba(255, 255, 255, 0.05)',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.1)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    gap: 6,
+  },
+  locActionBtnText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#FFF',
+  },
+  locActionBtnSmall: {
+    flex: 1,
+    height: 34,
+    borderRadius: 8,
+    backgroundColor: 'transparent',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.06)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  locActionBtnTextSmall: {
+    fontSize: 12,
+    color: '#FFF',
+    opacity: 0.6,
+  },
+  // Location Suggestion Edit modal styles
+  locEditBg: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.6)',
+    justifyContent: 'center',
+    padding: 20,
+    zIndex: 99999,
+  },
+  locEditCard: {
+    backgroundColor: CARD_BG,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: GLASS_BORDER,
+    padding: 20,
+  },
+  locEditHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  locEditTitle: {
+    fontSize: 18,
+    fontWeight: '800',
+    color: '#FFF',
+  },
+  locEditBody: {
+    gap: 12,
+  },
+  locInputLabel: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: LIGHT_PURPLE,
+  },
+  locTextInput: {
+    height: 46,
+    borderRadius: 10,
+    backgroundColor: 'rgba(255,255,255,0.05)',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.1)',
+    color: '#FFF',
+    paddingHorizontal: 12,
+    fontSize: 14,
+  },
+  locSaveEditBtn: {
+    height: 48,
+    borderRadius: 12,
+    backgroundColor: PURPLE,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginTop: 10,
+  },
+  locSaveEditBtnText: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: '#FFF',
   },
 });

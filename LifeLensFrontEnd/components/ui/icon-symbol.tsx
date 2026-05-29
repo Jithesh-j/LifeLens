@@ -53,6 +53,11 @@ const MAPPING = {
   'sportscourt.fill': 'sports-tennis',
   'xmark': 'close',
   'checkmark': 'check',
+  'location.fill': 'location-on',
+  'lock.fill': 'lock',
+  'shield.fill': 'shield',
+  'trash.fill': 'delete',
+  'map.fill': 'map',
 } as const;
 
 /**

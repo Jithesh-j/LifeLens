@@ -12,24 +12,25 @@ import { useSchedule, getTodayDateStr, ScheduleItem } from '@/context/schedule';
 import { ThemedText } from '@/components/themed-text';
 import { useThemeColor } from '@/hooks/use-theme-color';
 import { IconSymbol } from '@/components/ui/icon-symbol';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 const SCREEN_WIDTH = Dimensions.get('window').width;
 
 // ── Design Tokens ──────────────────────────────────────────────────────────────
-const PURPLE = '#7C4DFF';
-const NAVY = '#0F101D';
-const GREEN = '#2E7D32';
-const BLUE = '#1565C0';
-const AMBER = '#F57F17';
-const RED = '#C62828';
-const DEEP_PURPLE = '#4527A0';
+const PURPLE = '#8F66FF';
+const NAVY = '#080916';
+const GREEN = '#34D399';
+const BLUE = '#3B82F6';
+const AMBER = '#F59E0B';
+const RED = '#EF4444';
+const DEEP_PURPLE = '#11132A';
 
 const CATEGORY_THEME: Record<string, { color: string; bg: string; label: string; icon: any }> = {
-  health: { color: GREEN, bg: '#E8F5E9', label: 'Health', icon: 'gym' },
-  work: { color: '#6A1B9A', bg: '#F3E5F5', label: 'Work', icon: 'laptop' },
-  social: { color: AMBER, bg: '#FFFDE7', label: 'Social', icon: 'groups' },
-  rest: { color: '#546E7A', bg: '#ECEFF1', label: 'Rest', icon: 'rest' },
-  other: { color: '#78909C', bg: '#F5F5F5', label: 'Other', icon: 'rest' },
+  health: { color: GREEN, bg: 'rgba(52, 211, 153, 0.08)', label: 'Health', icon: 'gym' },
+  work: { color: PURPLE, bg: 'rgba(143, 102, 255, 0.08)', label: 'Work', icon: 'laptop' },
+  social: { color: AMBER, bg: 'rgba(245, 158, 11, 0.08)', label: 'Social', icon: 'groups' },
+  rest: { color: BLUE, bg: 'rgba(59, 130, 246, 0.08)', label: 'Rest', icon: 'rest' },
+  other: { color: '#94A3B8', bg: 'rgba(148, 163, 184, 0.08)', label: 'Other', icon: 'rest' },
 };
 
 type TabKey = 'patterns' | 'suggestions' | 'trends';
@@ -852,6 +853,7 @@ function TrendsTab({ data, cardBg }: { data: AnalyticsData; cardBg: string }) {
 
 export default function InsightsScreen() {
   const { scheduleItems } = useSchedule();
+  const insets = useSafeAreaInsets();
   const [activeTab, setActiveTab] = useState<TabKey>('patterns');
 
   const cardBg = useThemeColor({ light: '#F7F7FA', dark: '#1C1C1E' }, 'background');
@@ -866,7 +868,7 @@ export default function InsightsScreen() {
   return (
     <View style={s.container}>
       {/* ── Premium Header ─────────────────────────────────────────────────── */}
-      <View style={s.header}>
+      <View style={[s.header, { paddingTop: insets.top > 0 ? insets.top + 32 : 80 }]}>
         <View style={s.headerTopRow}>
           <View>
             <ThemedText style={s.headerTitle}>Insights</ThemedText>
@@ -948,28 +950,28 @@ const chartStyles = StyleSheet.create({
 });
 
 const s = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#fff' },
+  container: { flex: 1, backgroundColor: '#080916' },
 
   // Header
-  header: { backgroundColor: NAVY, paddingTop: 60, paddingHorizontal: 20, paddingBottom: 22, borderBottomLeftRadius: 32, borderBottomRightRadius: 32 },
+  header: { backgroundColor: NAVY, paddingHorizontal: 20, paddingBottom: 22, borderBottomLeftRadius: 32, borderBottomRightRadius: 32 },
   headerTopRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 20 },
-  headerTitle: { color: '#fff', fontSize: 28, fontWeight: '800', letterSpacing: -0.3 },
+  headerTitle: { color: '#fff', fontSize: 28, fontWeight: '800', letterSpacing: -0.3, lineHeight: 36, paddingTop: 6 },
   headerSub: { color: '#B0B0C4', fontSize: 13, fontWeight: '500', marginTop: 4 },
   headerAiBadge: { width: 44, height: 44, borderRadius: 22, justifyContent: 'center', alignItems: 'center' },
   tabRow: { flexDirection: 'row', gap: 10 },
   tabChip: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 10, borderRadius: 14 },
   tabChipText: { fontSize: 13, fontWeight: '700' },
 
-  scrollContent: { paddingHorizontal: 20, paddingTop: 22, paddingBottom: 40, gap: 16 },
+  scrollContent: { paddingHorizontal: 20, paddingTop: 22, paddingBottom: 130, gap: 16 },
 
   // Metric strip
   metricsStrip: { flexDirection: 'row', gap: 10 },
-  metricCard: { flex: 1, padding: 14, borderRadius: 18, alignItems: 'center', gap: 6, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.04, shadowRadius: 6, elevation: 1 },
+  metricCard: { flex: 1, padding: 14, borderRadius: 18, alignItems: 'center', gap: 6, backgroundColor: '#11132A', borderWidth: 1, borderColor: 'rgba(255, 255, 255, 0.05)', shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.04, shadowRadius: 6, elevation: 1 },
   metricValue: { fontSize: 18, fontWeight: '800' },
   metricLabel: { fontSize: 10, fontWeight: '600', opacity: 0.45 },
 
   // Chart card
-  chartCard: { borderRadius: 22, padding: 20, overflow: 'hidden', shadowColor: '#000', shadowOffset: { width: 0, height: 3 }, shadowOpacity: 0.05, shadowRadius: 8, elevation: 2 },
+  chartCard: { borderRadius: 22, padding: 20, overflow: 'hidden', backgroundColor: '#11132A', borderWidth: 1, borderColor: 'rgba(255, 255, 255, 0.05)', shadowColor: '#000', shadowOffset: { width: 0, height: 3 }, shadowOpacity: 0.05, shadowRadius: 8, elevation: 2 },
   chartHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 8 },
   chartTitle: { fontSize: 17, fontWeight: '800', letterSpacing: -0.2 },
   chartSubtitle: { fontSize: 12, opacity: 0.45, fontWeight: '500', marginTop: 2 },
@@ -1002,7 +1004,7 @@ const s = StyleSheet.create({
   suggestionsHeaderIcon: { width: 48, height: 48, borderRadius: 16, justifyContent: 'center', alignItems: 'center' },
   suggestionsHeaderTitle: { fontSize: 17, fontWeight: '800', letterSpacing: -0.2 },
   suggestionsHeaderSub: { fontSize: 12, opacity: 0.45, fontWeight: '500', marginTop: 2 },
-  suggestionCard: { borderRadius: 20, padding: 18, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.05, shadowRadius: 6, elevation: 1 },
+  suggestionCard: { borderRadius: 20, padding: 18, backgroundColor: '#11132A', borderWidth: 1, borderColor: 'rgba(255, 255, 255, 0.05)', shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.05, shadowRadius: 6, elevation: 1 },
   suggCardTop: { flexDirection: 'row', gap: 14, alignItems: 'flex-start' },
   suggIcon: { width: 44, height: 44, borderRadius: 14, justifyContent: 'center', alignItems: 'center', marginTop: 2 },
   suggText: { fontSize: 14, fontWeight: '700', lineHeight: 20, letterSpacing: -0.1 },
@@ -1022,7 +1024,7 @@ const s = StyleSheet.create({
   hourBlock: { width: 28, height: 28, borderRadius: 8 },
   hourLabel: { fontSize: 8, fontWeight: '600', opacity: 0.4 },
   trendSummaryRow: { flexDirection: 'row', gap: 12 },
-  trendSummaryCard: { flex: 1, padding: 16, borderRadius: 20, alignItems: 'center', gap: 8, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.04, shadowRadius: 6, elevation: 1 },
+  trendSummaryCard: { flex: 1, padding: 16, borderRadius: 20, alignItems: 'center', gap: 8, backgroundColor: '#11132A', borderWidth: 1, borderColor: 'rgba(255, 255, 255, 0.05)', shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.04, shadowRadius: 6, elevation: 1 },
   trendSummaryIcon: { width: 40, height: 40, borderRadius: 14, justifyContent: 'center', alignItems: 'center' },
   trendSummaryValue: { fontSize: 20, fontWeight: '800' },
   trendSummaryLabel: { fontSize: 11, fontWeight: '600', opacity: 0.45 },

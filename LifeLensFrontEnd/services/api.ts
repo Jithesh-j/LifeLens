@@ -37,6 +37,24 @@ export interface UserResponse {
   created_at: string;
 }
 
+export interface UserSettingsResponse {
+  id: string;
+  user_id: string;
+  location_enabled: boolean;
+  smart_activity_detection: boolean;
+  smart_notifications: boolean;
+  notification_frequency: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface UserSettingsUpdate {
+  location_enabled?: boolean;
+  smart_activity_detection?: boolean;
+  smart_notifications?: boolean;
+  notification_frequency?: string;
+}
+
 export interface LoginResponse {
   access_token: string;
   token_type: string;
@@ -245,6 +263,38 @@ export const api = {
     const result = await response.json();
     console.log('✅ Transcribe API Success:', result);
     return result;
+  },
+
+  // Get User Settings
+  async getUserSettings(): Promise<UserSettingsResponse> {
+    const headers = await this.getHeaders(true);
+    const response = await fetch(`${BASE_URL}/api/settings`, {
+      method: 'GET',
+      headers,
+    });
+
+    if (!response.ok) {
+      throw new Error('Failed to fetch user settings');
+    }
+
+    return response.json();
+  },
+
+  // Update User Settings
+  async updateUserSettings(payload: UserSettingsUpdate): Promise<UserSettingsResponse> {
+    const headers = await this.getHeaders(true);
+    const response = await fetch(`${BASE_URL}/api/settings`, {
+      method: 'PUT',
+      headers,
+      body: JSON.stringify(payload),
+    });
+
+    if (!response.ok) {
+      const errData = await response.json().catch(() => ({ detail: 'Failed to update user settings' }));
+      throw new Error(getErrorMessage(errData, 'Failed to update user settings'));
+    }
+
+    return response.json();
   },
 };
 

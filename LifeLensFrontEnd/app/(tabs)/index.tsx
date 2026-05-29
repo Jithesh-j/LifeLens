@@ -6,6 +6,7 @@ import { useCalendarUI } from '@/context/calendar-ui';
 import { ThemedText } from '@/components/themed-text';
 import { useThemeColor } from '@/hooks/use-theme-color';
 import { IconSymbol } from '@/components/ui/icon-symbol';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 // Helper to get 7 days of the week containing a target date string
 const getDaysOfWeek = (targetDateStr: string) => {
@@ -71,12 +72,13 @@ export default function CalendarScreen() {
   const router = useRouter();
   const { scheduleItems, approveSuggestion } = useSchedule();
   const { calendarExpanded, setCalendarExpanded, selectedDate, setSelectedDate } = useCalendarUI();
+  const insets = useSafeAreaInsets();
 
   // Themes & Styling Mappings
-  const primaryColor = '#7C4DFF';
-  const headerNavy = '#0F101D';
-  const accentGreen = '#4CAF50';
-  const cardBg = useThemeColor({ light: '#F2F2F7', dark: '#1C1C1E' }, 'background');
+  const primaryColor = '#8F66FF';
+  const headerNavy = '#11132A';
+  const accentGreen = '#34D399';
+  const cardBg = '#11132A';
 
   // Dynamic monthly planner structure based on selected date's month
   const calendarDaysMonth = React.useMemo(() => {
@@ -187,13 +189,13 @@ export default function CalendarScreen() {
   const getCardStyles = (color: string) => {
     switch (color) {
       case 'green':
-        return { bg: '#E8F5E9', border: '#4CAF50', text: '#2E7D32' };
+        return { bg: 'rgba(52, 211, 153, 0.08)', border: '#34D399', text: '#34D399' };
       case 'purple':
-        return { bg: '#F3E5F5', border: '#7C4DFF', text: '#6A1B9A' };
+        return { bg: 'rgba(143, 102, 255, 0.08)', border: '#8F66FF', text: '#C4A8FF' };
       case 'yellow':
-        return { bg: '#FFFDE7', border: '#FBC02D', text: '#F57F17' };
+        return { bg: 'rgba(245, 158, 11, 0.08)', border: '#F59E0B', text: '#F59E0B' };
       default:
-        return { bg: '#ECEFF1', border: '#78909C', text: '#37474F' };
+        return { bg: 'rgba(59, 130, 246, 0.08)', border: '#3B82F6', text: '#93C5FD' };
     }
   };
 
@@ -201,7 +203,7 @@ export default function CalendarScreen() {
     <View style={styles.container}>
       {calendarExpanded ? (
         <View style={{ flex: 1 }}>
-          <View style={[styles.headerSection, { backgroundColor: headerNavy }]}>
+          <View style={[styles.headerSection, { backgroundColor: headerNavy, paddingTop: insets.top > 0 ? insets.top + 32 : 80 }]}>
             <View style={styles.headerTop}>
               <ThemedText style={styles.headerTitle}>{getMonthYearLabel(selectedDate)}</ThemedText>
               <TouchableOpacity style={styles.menuIcon} onPress={() => setCalendarExpanded(false)}>
@@ -298,7 +300,7 @@ export default function CalendarScreen() {
         </View>
       ) : (
         <View style={{ flex: 1 }}>
-          <View style={[styles.headerSection, { backgroundColor: headerNavy }]}>
+          <View style={[styles.headerSection, { backgroundColor: headerNavy, paddingTop: insets.top > 0 ? insets.top + 32 : 80 }]}>
             <View style={styles.headerTop}>
               <ThemedText style={styles.headerTitle}>{getTimelineHeaderLabel(selectedDate)}</ThemedText>
               <TouchableOpacity style={styles.menuIcon} onPress={() => setCalendarExpanded(true)}>
@@ -342,16 +344,16 @@ export default function CalendarScreen() {
             </View>
 
             {selectedDate === todayStr && pendingSuggestion && (
-              <View style={[styles.suggestionBanner, { backgroundColor: '#E8F5E9' }]}>
+              <View style={[styles.suggestionBanner, { backgroundColor: 'rgba(52, 211, 153, 0.08)', borderColor: 'rgba(52, 211, 153, 0.25)' }]}>
                 <View style={styles.suggestionLeft}>
                   <IconSymbol size={22} name="gym" color={accentGreen} style={{ marginRight: 8 }} />
                   <View style={{ flex: 1 }}>
-                    <ThemedText style={[styles.suggestionTitle, { color: '#2E7D32' }]}>{pendingSuggestion.title}</ThemedText>
-                    <ThemedText style={[styles.suggestionDesc, { color: '#2E7D3290' }]}>{pendingSuggestion.timeRange} • {pendingSuggestion.duration}</ThemedText>
+                    <ThemedText style={[styles.suggestionTitle, { color: '#34D399' }]}>{pendingSuggestion.title}</ThemedText>
+                    <ThemedText style={[styles.suggestionDesc, { color: 'rgba(52, 211, 153, 0.7)' }]}>{pendingSuggestion.timeRange} • {pendingSuggestion.duration}</ThemedText>
                   </View>
                 </View>
                 <TouchableOpacity onPress={() => approveSuggestion(pendingSuggestion.id)} style={[styles.addSuggestionBtn, { backgroundColor: accentGreen }]}>
-                  <ThemedText style={styles.addSuggestionText}>+ Add</ThemedText>
+                  <ThemedText style={[styles.addSuggestionText, { color: '#080916' }]}>+ Add</ThemedText>
                 </TouchableOpacity>
               </View>
             )}
@@ -436,10 +438,10 @@ export default function CalendarScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#fff' },
-  headerSection: { paddingTop: 60, paddingHorizontal: 20, paddingBottom: 22, borderBottomLeftRadius: 32, borderBottomRightRadius: 32 },
+  container: { flex: 1, backgroundColor: '#080916' },
+  headerSection: { paddingHorizontal: 20, paddingBottom: 22, borderBottomLeftRadius: 32, borderBottomRightRadius: 32 },
   headerTop: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 },
-  headerTitle: { color: '#fff', fontSize: 24, fontWeight: '800' },
+  headerTitle: { color: '#fff', fontSize: 24, fontWeight: '800', lineHeight: 32, paddingTop: 4 },
   menuIcon: { padding: 6 },
   weekdayRow: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 10 },
   weekdayText: { width: 40, textAlign: 'center', fontSize: 13, color: '#B0B0C4', fontWeight: '700' },
@@ -451,43 +453,43 @@ const styles = StyleSheet.create({
   eventDot: { width: 4, height: 4, borderRadius: 2, marginTop: 2 },
   eventsPanel: { flex: 1, paddingTop: 16, paddingHorizontal: 20 },
   panelHeader: { flexDirection: 'row', justifyContent: 'flex-start', marginBottom: 14 },
-  dropdownButton: { flexDirection: 'row', alignItems: 'center', paddingVertical: 8, paddingHorizontal: 16, borderRadius: 14, gap: 8 },
-  dropdownText: { fontSize: 14, fontWeight: '700', opacity: 0.7 },
-  eventsScroll: { paddingBottom: 30, gap: 12 },
-  eventCard: { flexDirection: 'row', borderRadius: 18, paddingVertical: 14, paddingHorizontal: 16, borderLeftWidth: 4.5, alignItems: 'center', shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.05, shadowRadius: 4, elevation: 1 },
+  dropdownButton: { flexDirection: 'row', alignItems: 'center', paddingVertical: 8, paddingHorizontal: 16, borderRadius: 14, gap: 8, backgroundColor: '#11132A', borderWidth: 1, borderColor: 'rgba(255,255,255,0.06)' },
+  dropdownText: { fontSize: 14, fontWeight: '700', color: '#fff', opacity: 0.8 },
+  eventsScroll: { paddingBottom: 130, gap: 12 },
+  eventCard: { flexDirection: 'row', borderRadius: 18, paddingVertical: 14, paddingHorizontal: 16, borderLeftWidth: 4.5, alignItems: 'center', borderWidth: 1, borderColor: 'rgba(255,255,255,0.05)', shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.05, shadowRadius: 4, elevation: 1 },
   cardHeaderBox: { width: 75, alignItems: 'flex-start' },
-  timeBadge: { fontSize: 13, fontWeight: '700', color: '#8E8E93' },
-  connector: { width: 2, height: 12, backgroundColor: '#8E8E9330', marginLeft: 14, marginTop: 4 },
+  timeBadge: { fontSize: 13, fontWeight: '700', color: 'rgba(255,255,255,0.5)' },
+  connector: { width: 2, height: 12, backgroundColor: 'rgba(255, 255, 255, 0.08)', marginLeft: 14, marginTop: 4 },
   cardContent: { flex: 1, paddingLeft: 10 },
-  cardTitle: { fontSize: 14, fontWeight: '700' },
-  cardDuration: { fontSize: 12, opacity: 0.6, marginTop: 2 },
+  cardTitle: { fontSize: 14, fontWeight: '700', color: '#fff' },
+  cardDuration: { fontSize: 12, opacity: 0.6, marginTop: 2, color: '#fff' },
   emptyContainer: { alignItems: 'center', paddingTop: 60, gap: 10 },
-  emptyText: { color: '#8E8E93', fontSize: 15, fontWeight: '600' },
+  emptyText: { color: 'rgba(255,255,255,0.4)', fontSize: 15, fontWeight: '600' },
   badgeContainer: { paddingHorizontal: 12, paddingVertical: 5, borderRadius: 12, alignSelf: 'flex-start', marginBottom: 6 },
   calendarStrip: { flexDirection: 'row', justifyContent: 'space-between', marginTop: 6 },
-  dayCard: { width: 44, height: 64, borderRadius: 14, justifyContent: 'center', alignItems: 'center', backgroundColor: '#FFFFFF10' },
+  dayCard: { width: 44, height: 64, borderRadius: 14, justifyContent: 'center', alignItems: 'center', backgroundColor: 'rgba(255,255,255,0.06)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.04)' },
   selectedDayCard: { shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.15, shadowRadius: 6, elevation: 3 },
   dayName: { fontSize: 12, color: '#B0B0C4', fontWeight: '600' },
   dayNum: { fontSize: 16, color: '#fff', fontWeight: '700', marginTop: 4 },
-  timelineScroll: { paddingHorizontal: 20, paddingTop: 20, paddingBottom: 40 },
+  timelineScroll: { paddingHorizontal: 20, paddingTop: 20, paddingBottom: 130 },
   todayHeaderBox: { marginBottom: 16 },
-  todayTitle: { fontSize: 22, fontWeight: '800' },
-  todayDateSub: { fontSize: 14, opacity: 0.5, marginTop: 2 },
-  suggestionBanner: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', padding: 16, borderRadius: 18, marginBottom: 20, borderWidth: 1, borderColor: '#4CAF5020' },
+  todayTitle: { fontSize: 22, fontWeight: '800', color: '#fff' },
+  todayDateSub: { fontSize: 14, opacity: 0.5, marginTop: 2, color: '#fff' },
+  suggestionBanner: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', padding: 16, borderRadius: 18, marginBottom: 20, borderWidth: 1, borderColor: 'rgba(52, 211, 153, 0.25)' },
   suggestionLeft: { flexDirection: 'row', alignItems: 'center', flex: 1 },
   suggestionTitle: { fontSize: 15, fontWeight: '700' },
   suggestionDesc: { fontSize: 12, marginTop: 2 },
   addSuggestionBtn: { paddingHorizontal: 16, paddingVertical: 8, borderRadius: 12 },
-  addSuggestionText: { color: '#fff', fontSize: 13, fontWeight: '700' },
-  timelineSectionTitle: { fontSize: 16, fontWeight: '700', opacity: 0.6, marginBottom: 16, textTransform: 'uppercase', letterSpacing: 0.5 },
+  addSuggestionText: { fontSize: 13, fontWeight: '700' },
+  timelineSectionTitle: { fontSize: 14, fontWeight: '800', opacity: 0.5, marginBottom: 16, textTransform: 'uppercase', letterSpacing: 0.8, color: '#fff' },
   timelineRow: { flexDirection: 'row', minHeight: 88 },
   timeLabelContainer: { width: 70, alignItems: 'flex-end', paddingRight: 10, paddingTop: 2 },
-  timeLabel: { fontSize: 13, fontWeight: '700', color: '#8E8E93' },
+  timeLabel: { fontSize: 13, fontWeight: '700', color: 'rgba(255, 255, 255, 0.4)' },
   nodeContainer: { width: 20, alignItems: 'center', paddingTop: 6 },
-  nodeDot: { width: 10, height: 10, borderRadius: 5, borderWidth: 2, backgroundColor: '#fff', zIndex: 1 },
+  nodeDot: { width: 10, height: 10, borderRadius: 5, borderWidth: 2, backgroundColor: '#080916', zIndex: 1 },
   nodeLine: { width: 2, position: 'absolute', top: 16, bottom: -16 },
   cardsContainer: { flex: 1, paddingLeft: 12, paddingBottom: 16, gap: 8 },
-  eventCardTimeline: { flexDirection: 'row', borderRadius: 16, paddingVertical: 14, paddingHorizontal: 16, borderLeftWidth: 4.5, alignItems: 'center', justifyContent: 'space-between', shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.05, shadowRadius: 4, elevation: 1 },
+  eventCardTimeline: { flexDirection: 'row', borderRadius: 16, paddingVertical: 14, paddingHorizontal: 16, borderLeftWidth: 4.5, alignItems: 'center', justifyContent: 'space-between', borderWidth: 1, borderColor: 'rgba(255,255,255,0.05)', shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.05, shadowRadius: 4, elevation: 1 },
   cardTitleTimeline: { fontSize: 15, fontWeight: '700' },
   cardTimeTimeline: { fontSize: 13, marginTop: 4, fontWeight: '500' },
   emptySlotCard: { height: 48 },

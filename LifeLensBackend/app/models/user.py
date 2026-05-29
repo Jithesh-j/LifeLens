@@ -48,6 +48,13 @@ class User(Base):
     # Relationships
     activities = relationship("Activity", back_populates="user", lazy="selectin")
     insights = relationship("Insight", back_populates="user", lazy="selectin")
+    settings = relationship(
+        "UserSettings",
+        back_populates="user",
+        uselist=False,
+        cascade="all, delete-orphan",
+        lazy="selectin",
+    )
 
     def __repr__(self) -> str:
         return f"<User {self.email}>"
