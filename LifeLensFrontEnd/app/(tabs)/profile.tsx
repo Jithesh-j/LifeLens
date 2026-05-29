@@ -9,6 +9,7 @@ import {
   TextInput,
   Dimensions,
   ActivityIndicator,
+  Platform,
 } from 'react-native';
 import * as SecureStore from 'expo-secure-store';
 import * as Location from 'expo-location';
@@ -26,8 +27,8 @@ const SCREEN_HEIGHT = Dimensions.get('window').height;
 const PURPLE = '#8F66FF';
 const LIGHT_PURPLE = '#C4A8FF';
 const DARK_BG = '#080916';
-const CARD_BG = '#11132A';
-const GLASS_BORDER = 'rgba(255, 255, 255, 0.06)';
+const CARD_BG = 'rgba(17, 19, 42, 0.65)';
+const GLASS_BORDER = 'rgba(255, 255, 255, 0.09)';
 const GREEN = '#34D399';
 const BLUE = '#3B82F6';
 const AMBER = '#F59E0B';
@@ -46,6 +47,7 @@ export default function ProfileScreen() {
   const [locationEnabled, setLocationEnabled] = useState(false);
   const [smartDetectionEnabled, setSmartDetectionEnabled] = useState(false);
   const [notificationsEnabled, setNotificationsEnabled] = useState(false);
+  const [weatherOnTimeline, setWeatherOnTimeline] = useState(false);
   const [frequency, setFrequency] = useState<'instant' | 'daily' | 'weekly' | 'off'>('instant');
 
   // Sub-Overlay Displays
@@ -70,6 +72,7 @@ export default function ProfileScreen() {
         setLocationEnabled(settings.location_enabled);
         setSmartDetectionEnabled(settings.smart_activity_detection);
         setNotificationsEnabled(settings.smart_notifications);
+        setWeatherOnTimeline(settings.weather_on_timeline || false);
         setFrequency(settings.notification_frequency as any);
 
         const simActiveKey = `${user.id}_simulated_suggestion_active`;
@@ -99,6 +102,8 @@ export default function ProfileScreen() {
         payload.smart_activity_detection = value === 'true';
       } else if (key === 'smart_notifications_enabled') {
         payload.smart_notifications = value === 'true';
+      } else if (key === 'weather_on_timeline') {
+        payload.weather_on_timeline = value === 'true';
       } else if (key === 'notifications_frequency') {
         payload.notification_frequency = value;
       }
@@ -123,10 +128,26 @@ export default function ProfileScreen() {
     }
   };
 
-  const acceptPermission = () => {
-    setLocationEnabled(true);
+  const acceptPermission = async () => {
     setShowPermissionPrompt(false);
-    saveSetting('location_services_enabled', 'true');
+    try {
+      const { status } = await Location.requestForegroundPermissionsAsync();
+      if (status === 'granted') {
+        setLocationEnabled(true);
+        saveSetting('location_services_enabled', 'true');
+      } else {
+        setLocationEnabled(false);
+        saveSetting('location_services_enabled', 'false');
+        Alert.alert(
+          'System Permission Denied',
+          'AuraJournal requires system-level location permissions. Please open your iOS Settings -> Expo Go -> Location and select "While Using the App" or "Always" to allow coordinates access.'
+        );
+      }
+    } catch (err) {
+      console.error('Failed to request location permission:', err);
+      setLocationEnabled(false);
+      saveSetting('location_services_enabled', 'false');
+    }
   };
 
   const rejectPermission = () => {
@@ -157,7 +178,10 @@ export default function ProfileScreen() {
       // 1. Request foreground permission from the device
       let { status } = await Location.requestForegroundPermissionsAsync();
       if (status !== 'granted') {
-        Alert.alert('Permission Denied', 'AuraJournal requires location permissions to detect your actual surroundings.');
+        Alert.alert(
+          'System Permission Denied',
+          'AuraJournal requires system-level location access to query actual coordinates.\n\nPlease open your iOS Settings -> Expo Go -> Location and select "While Using the App" or "Always" to proceed.'
+        );
         setIsLocating(false);
         return;
       }
@@ -234,6 +258,8 @@ export default function ProfileScreen() {
         color: color,
         timeOfDay: timeOfDayLabel,
         date: getTodayDateStr(),
+        latitude,
+        longitude,
       };
 
       setActiveSimulation(mockSuggestion);
@@ -260,6 +286,8 @@ export default function ProfileScreen() {
         color: 'green',
         timeOfDay: '10:30 AM',
         date: getTodayDateStr(),
+        latitude: 34.05,
+        longitude: -118.24,
       };
 
       setActiveSimulation(mockSuggestion);
@@ -314,10 +342,38 @@ export default function ProfileScreen() {
     try {
       const sentence = `Spent ${activeSimulation.durationMinutes} minutes at ${activeSimulation.placeName} (${activeSimulation.inferredActivity})`;
       
+      // Parse 12h time to 24h format for ISO string construction
+      const timePart = activeSimulation.timeOfDay.split(' ')[0] || '';
+      const ampm = activeSimulation.timeOfDay.split(' ')[1] || 'AM';
+      let h = parseInt(timePart.split(':')[0]) || 12;
+      const m = parseInt(timePart.split(':')[1]) || 0;
+      if (ampm.toUpperCase() === 'PM' && h < 12) h += 12;
+      if (ampm.toUpperCase() === 'AM' && h === 12) h = 0;
+      const startTime24h = `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}:00`;
+      
+      const startISO = `${activeSimulation.date}T${startTime24h}`;
+
+      const newLocalItem: any = {
+        id: Math.random().toString(),
+        title: activeSimulation.inferredActivity,
+        timeRange: activeSimulation.timeOfDay,
+        category: activeSimulation.category,
+        icon: activeSimulation.icon,
+        color: activeSimulation.color,
+        date: activeSimulation.date,
+        startTime: startISO,
+        isAiExtracted: false,
+        location: {
+          name: activeSimulation.placeName,
+          latitude: activeSimulation.latitude || 34.05,
+          longitude: activeSimulation.longitude || -118.24,
+        }
+      };
+
       // Save to backend database
       await api.createActivity(sentence, `${activeSimulation.date}T12:00:00`);
       // Extract and save to local schedule
-      addNoteAndExtract(sentence, activeSimulation.date);
+      await addNoteAndExtract(sentence, activeSimulation.date, [newLocalItem]);
 
       Alert.alert('Added to Timeline', 'Your visit was logged as an activity in your timeline logs.');
       await clearSimulatedSuggestion();
@@ -434,6 +490,11 @@ export default function ProfileScreen() {
 
   return (
     <View style={styles.outerContainer}>
+      {/* Background Glow */}
+      <View style={styles.glowCircle1} />
+      <View style={styles.glowCircle2} />
+      <View style={styles.glowCircle3} />
+
       <ScrollView 
         style={styles.container} 
         contentContainerStyle={[
@@ -712,6 +773,25 @@ export default function ProfileScreen() {
               />
             </View>
 
+            {/* TOGGLE: Weather on Timeline */}
+            <View style={[styles.switchRowCard, { opacity: locationEnabled ? 1 : 0.4 }]}>
+              <View style={{ flex: 1, gap: 4 }}>
+                <ThemedText style={styles.switchRowLabel}>Weather on Timeline</ThemedText>
+                <ThemedText style={styles.switchRowDesc}>
+                  Enrich timeline events with historical and forecasted weather conditions.
+                </ThemedText>
+              </View>
+              <Switch
+                value={weatherOnTimeline}
+                disabled={!locationEnabled}
+                onValueChange={(val) => {
+                  setWeatherOnTimeline(val);
+                  saveSetting('weather_on_timeline', String(val));
+                }}
+                trackColor={{ true: PURPLE }}
+              />
+            </View>
+
             {/* INFERRED LOGIC LIST (Only if Smart Detection is ON) */}
             {locationEnabled && smartDetectionEnabled && (
               <View style={styles.inferenceBox}>
@@ -978,6 +1058,11 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: DARK_BG,
   },
+
+  glowCircle1: { position: 'absolute', top: 40, left: -100, width: 360, height: 360, borderRadius: 180, backgroundColor: 'rgba(143, 102, 255, 0.10)', zIndex: 0 },
+  glowCircle2: { position: 'absolute', bottom: 100, right: -120, width: 380, height: 380, borderRadius: 190, backgroundColor: 'rgba(59, 130, 246, 0.08)', zIndex: 0 },
+  glowCircle3: { position: 'absolute', top: '40%', right: -80, width: 300, height: 300, borderRadius: 150, backgroundColor: 'rgba(6, 182, 212, 0.07)', zIndex: 0 },
+
   container: {
     flex: 1,
   },
@@ -989,6 +1074,7 @@ const styles = StyleSheet.create({
   },
   header: {
     marginBottom: 10,
+    zIndex: 1,
   },
   headerTitle: {
     fontSize: 28,
@@ -1006,6 +1092,19 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: GLASS_BORDER,
     gap: 16,
+    shadowColor: '#8F66FF',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.05,
+    shadowRadius: 16,
+    elevation: 3,
+    ...Platform.select({
+      web: {
+        backdropFilter: 'blur(20px)',
+        // @ts-ignore
+        experimental_backdropFilter: 'blur(20px)',
+      },
+      default: {},
+    }),
   },
   avatar: {
     width: 68,
@@ -1043,6 +1142,7 @@ const styles = StyleSheet.create({
     marginBottom: 2,
     textTransform: 'uppercase',
     letterSpacing: 0.5,
+    zIndex: 1,
   },
   statsGrid: {
     flexDirection: 'row',
@@ -1057,6 +1157,19 @@ const styles = StyleSheet.create({
     borderColor: GLASS_BORDER,
     alignItems: 'center',
     gap: 6,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.03,
+    shadowRadius: 8,
+    elevation: 1,
+    ...Platform.select({
+      web: {
+        backdropFilter: 'blur(15px)',
+        // @ts-ignore
+        experimental_backdropFilter: 'blur(15px)',
+      },
+      default: {},
+    }),
   },
   statVal: {
     fontSize: 18,
@@ -1074,6 +1187,19 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: GLASS_BORDER,
     paddingHorizontal: 16,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.04,
+    shadowRadius: 12,
+    elevation: 2,
+    ...Platform.select({
+      web: {
+        backdropFilter: 'blur(20px)',
+        // @ts-ignore
+        experimental_backdropFilter: 'blur(20px)',
+      },
+      default: {},
+    }),
   },
   settingsRow: {
     flexDirection: 'row',

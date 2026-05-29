@@ -4,6 +4,7 @@ import * as WebBrowser from 'expo-web-browser';
 import { Platform } from 'react-native';
 import * as SecureStore from 'expo-secure-store';
 import Constants from 'expo-constants';
+import { useAuth } from '@/context/auth';
 
 WebBrowser.maybeCompleteAuthSession();
 
@@ -88,6 +89,9 @@ export function GoogleCalendarProvider({ children }: { children: React.ReactNode
   const [googleEvents, setGoogleEvents] = useState<GoogleCalendarEvent[]>([]);
   const [accessToken, setAccessToken] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
+  const { user } = useAuth();
+
+  const userTokenKey = user ? `${user.id}_google_calendar_token` : null;
 
   const owner = Constants.expoConfig?.owner || 'anonymous';
   const slug = Constants.expoConfig?.slug || 'LifeLens';
@@ -112,21 +116,33 @@ export function GoogleCalendarProvider({ children }: { children: React.ReactNode
     discovery,
   );
 
-  // Load cached token on mount
+  // Load cached token on mount or when user shifts
   useEffect(() => {
     async function loadToken() {
+      if (!userTokenKey) {
+        setAccessToken(null);
+        setGoogleEvents([]);
+        return;
+      }
       try {
-        const cachedToken = await SecureStore.getItemAsync(GOOGLE_TOKEN_KEY);
+        const cachedToken = await SecureStore.getItemAsync(userTokenKey);
         if (cachedToken) {
           setAccessToken(cachedToken);
+        } else {
+          setAccessToken(null);
+          setGoogleEvents([]);
         }
       } catch (e) {
         console.warn('Failed to load Google Calendar token', e);
-        await SecureStore.deleteItemAsync(GOOGLE_TOKEN_KEY).catch(() => {});
+        setAccessToken(null);
+        setGoogleEvents([]);
+        if (userTokenKey) {
+          await SecureStore.deleteItemAsync(userTokenKey).catch(() => {});
+        }
       }
     }
     loadToken();
-  }, []);
+  }, [userTokenKey]);
 
   // Handle auth response
   useEffect(() => {
@@ -155,12 +171,14 @@ export function GoogleCalendarProvider({ children }: { children: React.ReactNode
 
         if (token) {
           setAccessToken(token);
-          SecureStore.setItemAsync(GOOGLE_TOKEN_KEY, token).catch(console.warn);
+          if (userTokenKey) {
+            SecureStore.setItemAsync(userTokenKey, token).catch(console.warn);
+          }
         }
       }
     }
     handleResponse();
-  }, [response, request, redirectUri]);
+  }, [response, request, redirectUri, userTokenKey]);
 
   // Auto-fetch events when we have a token
   useEffect(() => {
@@ -182,7 +200,9 @@ export function GoogleCalendarProvider({ children }: { children: React.ReactNode
       if (res.status === 401) {
         console.log('Google Calendar token expired, clearing...');
         setAccessToken(null);
-        await SecureStore.deleteItemAsync(GOOGLE_TOKEN_KEY);
+        if (userTokenKey) {
+          await SecureStore.deleteItemAsync(userTokenKey).catch(() => {});
+        }
         setGoogleEvents([]);
         return;
       }
@@ -200,7 +220,7 @@ export function GoogleCalendarProvider({ children }: { children: React.ReactNode
     } finally {
       setIsLoading(false);
     }
-  }, []);
+  }, [userTokenKey]);
 
   const signIn = useCallback(async () => {
     if (!request) return;
@@ -224,8 +244,10 @@ export function GoogleCalendarProvider({ children }: { children: React.ReactNode
     }
     setAccessToken(null);
     setGoogleEvents([]);
-    await SecureStore.deleteItemAsync(GOOGLE_TOKEN_KEY).catch(console.warn);
-  }, [accessToken]);
+    if (userTokenKey) {
+      await SecureStore.deleteItemAsync(userTokenKey).catch(console.warn);
+    }
+  }, [accessToken, userTokenKey]);
 
   const createEvent = useCallback(async (title: string, startTime: string, endTime: string): Promise<boolean> => {
     if (!accessToken) return false;

@@ -43,6 +43,7 @@ export interface UserSettingsResponse {
   location_enabled: boolean;
   smart_activity_detection: boolean;
   smart_notifications: boolean;
+  weather_on_timeline: boolean;
   notification_frequency: string;
   created_at: string;
   updated_at: string;
@@ -52,6 +53,7 @@ export interface UserSettingsUpdate {
   location_enabled?: boolean;
   smart_activity_detection?: boolean;
   smart_notifications?: boolean;
+  weather_on_timeline?: boolean;
   notification_frequency?: string;
 }
 
@@ -292,6 +294,37 @@ export const api = {
     if (!response.ok) {
       const errData = await response.json().catch(() => ({ detail: 'Failed to update user settings' }));
       throw new Error(getErrorMessage(errData, 'Failed to update user settings'));
+    }
+
+    return response.json();
+  },
+
+  // Get User-Isolated Weather
+  async getWeather(latitude: number | null, longitude: number | null, timestamp: string): Promise<{
+    status: 'ok' | 'location_unavailable';
+    latitude?: number;
+    longitude?: number;
+    temperature_c?: number;
+    temperature_f?: number;
+    weathercode?: number;
+    wind_speed?: number;
+    humidity?: number;
+    timestamp?: string;
+    user_id?: string;
+    fetched_at?: string;
+  }> {
+    const headers = await this.getHeaders(true);
+    let url = `${BASE_URL}/api/weather?timestamp=${encodeURIComponent(timestamp)}`;
+    if (latitude !== null) url += `&latitude=${latitude}`;
+    if (longitude !== null) url += `&longitude=${longitude}`;
+
+    const response = await fetch(url, {
+      method: 'GET',
+      headers,
+    });
+
+    if (!response.ok) {
+      throw new Error('Failed to fetch weather from backend');
     }
 
     return response.json();

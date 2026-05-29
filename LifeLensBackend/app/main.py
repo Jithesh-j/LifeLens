@@ -14,6 +14,7 @@ from app.api.activities import router as activities_router
 from app.api.auth import router as auth_router
 from app.api.insights import router as insights_router
 from app.api.settings import router as settings_router
+from app.api.weather import router as weather_router
 from app.config import settings
 from app.database import engine
 
@@ -69,6 +70,7 @@ app.include_router(auth_router)
 app.include_router(activities_router)
 app.include_router(insights_router)
 app.include_router(settings_router)
+app.include_router(weather_router)
 
 
 # ── Health Check ─────────────────────────────────────────────

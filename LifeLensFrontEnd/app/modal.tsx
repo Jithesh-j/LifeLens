@@ -88,11 +88,11 @@ export default function AddNoteModal() {
   const [isPlaybackPlaying, setIsPlaybackPlaying] = useState(false);
 
   // Themes & Styling colors
-  const primaryColor = '#7C4DFF';
-  const navyHeaderColor = '#0F101D';
-  const accentGreen = '#4CAF50';
-  const cardBg = useThemeColor({ light: '#F2F2F7', dark: '#1C1C1E' }, 'background');
-  const textColor = useThemeColor({}, 'text');
+  const primaryColor = '#8F66FF';
+  const navyHeaderColor = 'rgba(15, 17, 34, 0.65)';
+  const accentGreen = '#34D399';
+  const cardBg = 'rgba(17, 19, 42, 0.65)';
+  const textColor = '#FFF';
 
   // Sync state when content changes for the standard pre-populated blueprint mock hints
   const [hints, setHints] = useState<Array<{ text: string; color: string; bg: string }>>([]);
@@ -519,6 +519,13 @@ export default function AddNoteModal() {
     );
   };
 
+  // Edit location of individual event
+  const handleEditEventLocation = (id: string, text: string) => {
+    setExtractedEvents((prev) =>
+      prev.map((ev) => (ev.id === id ? { ...ev, location: { ...ev.location || { name: '' }, name: text } } : ev))
+    );
+  };
+
   // Delete individual event card
   const handleDeleteEvent = (id: string) => {
     setExtractedEvents((prev) => prev.filter((ev) => ev.id !== id));
@@ -639,6 +646,11 @@ export default function AddNoteModal() {
 
   return (
     <SafeAreaView style={styles.container}>
+      {/* Background Glow */}
+      <View style={styles.glowCircle1} />
+      <View style={styles.glowCircle2} />
+      <View style={styles.glowCircle3} />
+
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         style={{ flex: 1 }}>
@@ -945,6 +957,18 @@ export default function AddNoteModal() {
                           />
                         </View>
 
+                        {/* Location input */}
+                        <View style={{ marginTop: 8 }}>
+                          <ThemedText style={styles.eventReviewInputLabel}>Location (Optional)</ThemedText>
+                          <TextInput
+                            style={[styles.eventReviewInput, { color: textColor }]}
+                            value={event.location?.name || ''}
+                            onChangeText={(text) => handleEditEventLocation(event.id, text)}
+                            placeholder="e.g. Discovery Park or 34.05,-118.24"
+                            placeholderTextColor="#8E8E93"
+                          />
+                        </View>
+
                         {/* Badges and tags */}
                         <View style={styles.eventReviewCardFooter}>
                           {event.isAiExtracted ? (
@@ -1069,11 +1093,15 @@ export default function AddNoteModal() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#fff',
+    backgroundColor: '#080916',
   },
+  glowCircle1: { position: 'absolute', top: 40, left: -100, width: 360, height: 360, borderRadius: 180, backgroundColor: 'rgba(143, 102, 255, 0.10)', zIndex: 0 },
+  glowCircle2: { position: 'absolute', bottom: 100, right: -120, width: 380, height: 380, borderRadius: 190, backgroundColor: 'rgba(59, 130, 246, 0.08)', zIndex: 0 },
+  glowCircle3: { position: 'absolute', top: '40%', right: -80, width: 300, height: 300, borderRadius: 150, backgroundColor: 'rgba(6, 182, 212, 0.07)', zIndex: 0 },
+
   scrollContent: {
     flexGrow: 1,
-    backgroundColor: '#fff',
+    backgroundColor: '#080916',
   },
   headerSection: {
     paddingTop: 12,
@@ -1081,12 +1109,28 @@ const styles = StyleSheet.create({
     paddingBottom: 24,
     borderBottomLeftRadius: 30,
     borderBottomRightRadius: 30,
+    borderBottomWidth: 1.2,
+    borderBottomColor: 'rgba(255, 255, 255, 0.08)',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.05,
+    shadowRadius: 10,
+    elevation: 3,
+    ...Platform.select({
+      web: {
+        backdropFilter: 'blur(20px)',
+        // @ts-ignore
+        experimental_backdropFilter: 'blur(20px)',
+      },
+      default: {},
+    }),
   },
   headerTopBar: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
     height: 48,
+    zIndex: 1,
   },
   backBtn: {
     paddingVertical: 6,
@@ -1102,6 +1146,7 @@ const styles = StyleSheet.create({
   },
   headerInfo: {
     marginTop: 20,
+    zIndex: 1,
   },
   headerTitle: {
     color: '#fff',
@@ -1124,6 +1169,8 @@ const styles = StyleSheet.create({
     borderRadius: 14,
     padding: 4,
     height: 50,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.08)',
   },
   toggleBtn: {
     flex: 1,
@@ -1149,14 +1196,28 @@ const styles = StyleSheet.create({
   inputBoxContainer: {
     borderRadius: 20,
     padding: 16,
-    borderWidth: 1.5,
-    borderColor: '#7C4DFF20',
+    borderWidth: 1.2,
+    borderColor: 'rgba(255, 255, 255, 0.08)',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.04,
+    shadowRadius: 12,
+    elevation: 2,
+    ...Platform.select({
+      web: {
+        backdropFilter: 'blur(20px)',
+        // @ts-ignore
+        experimental_backdropFilter: 'blur(20px)',
+      },
+      default: {},
+    }),
   },
   textInput: {
     fontSize: 16,
     lineHeight: 24,
     minHeight: 120,
     textAlignVertical: 'top',
+    color: '#fff',
   },
   inputBoxFooter: {
     flexDirection: 'row',

@@ -7,6 +7,7 @@ import {
   Animated,
   Easing,
   Dimensions,
+  Platform,
 } from 'react-native';
 import { useSchedule, getTodayDateStr, ScheduleItem } from '@/context/schedule';
 import { ThemedText } from '@/components/themed-text';
@@ -23,7 +24,8 @@ const GREEN = '#34D399';
 const BLUE = '#3B82F6';
 const AMBER = '#F59E0B';
 const RED = '#EF4444';
-const DEEP_PURPLE = '#11132A';
+const DEEP_PURPLE = 'rgba(17, 19, 42, 0.65)';
+const LIGHT_PURPLE = '#C4A8FF';
 
 const CATEGORY_THEME: Record<string, { color: string; bg: string; label: string; icon: any }> = {
   health: { color: GREEN, bg: 'rgba(52, 211, 153, 0.08)', label: 'Health', icon: 'gym' },
@@ -135,7 +137,7 @@ function analyzeSchedule(items: ScheduleItem[]): AnalyticsData {
       confidence: morningHealth.length > 0 ? 0.87 : 0.72,
       icon: 'figure.walk' as any,
       color: GREEN,
-      bg: '#E8F5E9',
+      bg: 'rgba(52, 211, 153, 0.12)',
     },
     {
       insight: 'Late-night work lowers energy',
@@ -147,8 +149,8 @@ function analyzeSchedule(items: ScheduleItem[]): AnalyticsData {
         : 'No late-night work detected — great sleep hygiene!',
       confidence: 0.82,
       icon: 'moon.fill' as any,
-      color: DEEP_PURPLE,
-      bg: '#EDE7F6',
+      color: LIGHT_PURPLE,
+      bg: 'rgba(196, 168, 255, 0.12)',
     },
     {
       insight: 'Swimming improves sleep quality',
@@ -156,9 +158,9 @@ function analyzeSchedule(items: ScheduleItem[]): AnalyticsData {
         ? 'Swimming sessions correlate with 35% better rest quality'
         : 'Try adding evening swims — users report 35% deeper sleep',
       confidence: 0.79,
-      icon: 'gym' as any,
+      icon: 'figure.pool.swim' as any,
       color: BLUE,
-      bg: '#E3F2FD',
+      bg: 'rgba(59, 130, 246, 0.12)',
     },
     {
       insight: 'Social breaks boost afternoon productivity',
@@ -168,7 +170,7 @@ function analyzeSchedule(items: ScheduleItem[]): AnalyticsData {
       confidence: 0.74,
       icon: 'groups' as any,
       color: AMBER,
-      bg: '#FFFDE7',
+      bg: 'rgba(245, 158, 11, 0.12)',
     },
   ];
 
@@ -229,16 +231,16 @@ function analyzeSchedule(items: ScheduleItem[]): AnalyticsData {
       time: '8:30 AM',
       icon: 'figure.walk' as any,
       color: GREEN,
-      bg: '#E8F5E9',
+      bg: 'rgba(52, 211, 153, 0.12)',
     },
     {
       id: 's2',
       text: 'Evening swimming improves your sleep',
       reason: 'Water activities 2–3 hours before bed lower core temperature, signaling sleep readiness.',
       time: '6:00 PM',
-      icon: 'gym' as any,
+      icon: 'figure.pool.swim' as any,
       color: BLUE,
-      bg: '#E3F2FD',
+      bg: 'rgba(59, 130, 246, 0.12)',
     },
     {
       id: 's3',
@@ -247,7 +249,7 @@ function analyzeSchedule(items: ScheduleItem[]): AnalyticsData {
       time: '7:00 AM',
       icon: 'sun.max.fill' as any,
       color: AMBER,
-      bg: '#FFFDE7',
+      bg: 'rgba(245, 158, 11, 0.12)',
     },
     {
       id: 's4',
@@ -255,8 +257,8 @@ function analyzeSchedule(items: ScheduleItem[]): AnalyticsData {
       reason: `Your data shows peak activity at ${formatHour(peakHour)}. Protect this window from meetings.`,
       time: formatHour(peakHour),
       icon: 'bolt.fill' as any,
-      color: '#6A1B9A',
-      bg: '#F3E5F5',
+      color: PURPLE,
+      bg: 'rgba(143, 102, 255, 0.12)',
     },
     {
       id: 's5',
@@ -264,8 +266,8 @@ function analyzeSchedule(items: ScheduleItem[]): AnalyticsData {
       reason: 'A consistent 15-minute evening routine signals your body to prepare for sleep, improving quality by 40%.',
       time: '10:00 PM',
       icon: 'moon.fill' as any,
-      color: DEEP_PURPLE,
-      bg: '#EDE7F6',
+      color: LIGHT_PURPLE,
+      bg: 'rgba(196, 168, 255, 0.12)',
     },
   ];
 
@@ -701,19 +703,32 @@ function SuggestionsTab({ data, cardBg }: { data: AnalyticsData; cardBg: string 
           <TouchableOpacity
             activeOpacity={0.8}
             onPress={() => setExpandedId(expandedId === sug.id ? null : sug.id)}
-            style={[s.suggestionCard, { backgroundColor: cardBg }]}>
+            style={[
+              s.suggestionCard,
+              {
+                backgroundColor: cardBg,
+                borderLeftWidth: 4,
+                borderLeftColor: sug.color,
+                borderColor: 'rgba(255,255,255,0.06)',
+                shadowColor: sug.color,
+                shadowOffset: { width: 0, height: 6 },
+                shadowOpacity: 0.12,
+                shadowRadius: 12,
+                elevation: 3,
+              }
+            ]}>
             <View style={s.suggCardTop}>
               <View style={[s.suggIcon, { backgroundColor: sug.bg }]}>
                 <IconSymbol size={20} name={sug.icon} color={sug.color} />
               </View>
               <View style={{ flex: 1 }}>
-                <ThemedText style={s.suggText}>{sug.text}</ThemedText>
+                <ThemedText style={[s.suggText, { color: '#FFF' }]}>{sug.text}</ThemedText>
                 <View style={s.suggMeta}>
                   <View style={[s.suggTimeBadge, { backgroundColor: sug.bg }]}>
                     <IconSymbol size={10} name="clock.fill" color={sug.color} style={{ marginRight: 4 }} />
                     <ThemedText style={[s.suggTimeText, { color: sug.color }]}>{sug.time}</ThemedText>
                   </View>
-                  <View style={[s.suggAiBadge, { backgroundColor: PURPLE + '10' }]}>
+                  <View style={[s.suggAiBadge, { backgroundColor: PURPLE + '12' }]}>
                     <IconSymbol size={10} name="sparkles" color={PURPLE} style={{ marginRight: 3 }} />
                     <ThemedText style={{ fontSize: 10, fontWeight: '700', color: PURPLE }}>AI</ThemedText>
                   </View>
@@ -722,7 +737,7 @@ function SuggestionsTab({ data, cardBg }: { data: AnalyticsData; cardBg: string 
               <IconSymbol
                 size={14}
                 name={expandedId === sug.id ? 'minus.circle.fill' : 'chevron.right'}
-                color="#8E8E9340"
+                color={sug.color + '80'}
               />
             </View>
 
@@ -867,6 +882,11 @@ export default function InsightsScreen() {
 
   return (
     <View style={s.container}>
+      {/* Background Glow */}
+      <View style={s.glowCircle1} />
+      <View style={s.glowCircle2} />
+      <View style={s.glowCircle3} />
+
       {/* ── Premium Header ─────────────────────────────────────────────────── */}
       <View style={[s.header, { paddingTop: insets.top > 0 ? insets.top + 32 : 80 }]}>
         <View style={s.headerTopRow}>
@@ -952,8 +972,33 @@ const chartStyles = StyleSheet.create({
 const s = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#080916' },
 
+  glowCircle1: { position: 'absolute', top: 40, left: -100, width: 360, height: 360, borderRadius: 180, backgroundColor: 'rgba(143, 102, 255, 0.10)', zIndex: 0 },
+  glowCircle2: { position: 'absolute', bottom: 100, right: -120, width: 380, height: 380, borderRadius: 190, backgroundColor: 'rgba(59, 130, 246, 0.08)', zIndex: 0 },
+  glowCircle3: { position: 'absolute', top: '40%', right: -80, width: 300, height: 300, borderRadius: 150, backgroundColor: 'rgba(6, 182, 212, 0.07)', zIndex: 0 },
+
   // Header
-  header: { backgroundColor: NAVY, paddingHorizontal: 20, paddingBottom: 22, borderBottomLeftRadius: 32, borderBottomRightRadius: 32 },
+  header: {
+    backgroundColor: 'rgba(17, 19, 42, 0.65)',
+    paddingHorizontal: 20,
+    paddingBottom: 22,
+    borderBottomLeftRadius: 32,
+    borderBottomRightRadius: 32,
+    borderBottomWidth: 1.2,
+    borderBottomColor: 'rgba(255, 255, 255, 0.08)',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.05,
+    shadowRadius: 10,
+    elevation: 3,
+    ...Platform.select({
+      web: {
+        backdropFilter: 'blur(20px)',
+        // @ts-ignore
+        experimental_backdropFilter: 'blur(20px)',
+      },
+      default: {},
+    }),
+  },
   headerTopRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 20 },
   headerTitle: { color: '#fff', fontSize: 28, fontWeight: '800', letterSpacing: -0.3, lineHeight: 36, paddingTop: 6 },
   headerSub: { color: '#B0B0C4', fontSize: 13, fontWeight: '500', marginTop: 4 },
@@ -966,12 +1011,54 @@ const s = StyleSheet.create({
 
   // Metric strip
   metricsStrip: { flexDirection: 'row', gap: 10 },
-  metricCard: { flex: 1, padding: 14, borderRadius: 18, alignItems: 'center', gap: 6, backgroundColor: '#11132A', borderWidth: 1, borderColor: 'rgba(255, 255, 255, 0.05)', shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.04, shadowRadius: 6, elevation: 1 },
+  metricCard: {
+    flex: 1,
+    padding: 14,
+    borderRadius: 18,
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: DEEP_PURPLE,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.08)',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.04,
+    shadowRadius: 6,
+    elevation: 1,
+    ...Platform.select({
+      web: {
+        backdropFilter: 'blur(15px)',
+        // @ts-ignore
+        experimental_backdropFilter: 'blur(15px)',
+      },
+      default: {},
+    }),
+  },
   metricValue: { fontSize: 18, fontWeight: '800' },
   metricLabel: { fontSize: 10, fontWeight: '600', opacity: 0.45 },
 
   // Chart card
-  chartCard: { borderRadius: 22, padding: 20, overflow: 'hidden', backgroundColor: '#11132A', borderWidth: 1, borderColor: 'rgba(255, 255, 255, 0.05)', shadowColor: '#000', shadowOffset: { width: 0, height: 3 }, shadowOpacity: 0.05, shadowRadius: 8, elevation: 2 },
+  chartCard: {
+    borderRadius: 22,
+    padding: 20,
+    overflow: 'hidden',
+    backgroundColor: DEEP_PURPLE,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.08)',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.05,
+    shadowRadius: 8,
+    elevation: 2,
+    ...Platform.select({
+      web: {
+        backdropFilter: 'blur(20px)',
+        // @ts-ignore
+        experimental_backdropFilter: 'blur(20px)',
+      },
+      default: {},
+    }),
+  },
   chartHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 8 },
   chartTitle: { fontSize: 17, fontWeight: '800', letterSpacing: -0.2 },
   chartSubtitle: { fontSize: 12, opacity: 0.45, fontWeight: '500', marginTop: 2 },
@@ -1004,7 +1091,26 @@ const s = StyleSheet.create({
   suggestionsHeaderIcon: { width: 48, height: 48, borderRadius: 16, justifyContent: 'center', alignItems: 'center' },
   suggestionsHeaderTitle: { fontSize: 17, fontWeight: '800', letterSpacing: -0.2 },
   suggestionsHeaderSub: { fontSize: 12, opacity: 0.45, fontWeight: '500', marginTop: 2 },
-  suggestionCard: { borderRadius: 20, padding: 18, backgroundColor: '#11132A', borderWidth: 1, borderColor: 'rgba(255, 255, 255, 0.05)', shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.05, shadowRadius: 6, elevation: 1 },
+  suggestionCard: {
+    borderRadius: 20,
+    padding: 18,
+    backgroundColor: DEEP_PURPLE,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.08)',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 6,
+    elevation: 1,
+    ...Platform.select({
+      web: {
+        backdropFilter: 'blur(20px)',
+        // @ts-ignore
+        experimental_backdropFilter: 'blur(20px)',
+      },
+      default: {},
+    }),
+  },
   suggCardTop: { flexDirection: 'row', gap: 14, alignItems: 'flex-start' },
   suggIcon: { width: 44, height: 44, borderRadius: 14, justifyContent: 'center', alignItems: 'center', marginTop: 2 },
   suggText: { fontSize: 14, fontWeight: '700', lineHeight: 20, letterSpacing: -0.1 },
@@ -1024,7 +1130,29 @@ const s = StyleSheet.create({
   hourBlock: { width: 28, height: 28, borderRadius: 8 },
   hourLabel: { fontSize: 8, fontWeight: '600', opacity: 0.4 },
   trendSummaryRow: { flexDirection: 'row', gap: 12 },
-  trendSummaryCard: { flex: 1, padding: 16, borderRadius: 20, alignItems: 'center', gap: 8, backgroundColor: '#11132A', borderWidth: 1, borderColor: 'rgba(255, 255, 255, 0.05)', shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.04, shadowRadius: 6, elevation: 1 },
+  trendSummaryCard: {
+    flex: 1,
+    padding: 16,
+    borderRadius: 20,
+    alignItems: 'center',
+    gap: 8,
+    backgroundColor: DEEP_PURPLE,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.08)',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.04,
+    shadowRadius: 6,
+    elevation: 1,
+    ...Platform.select({
+      web: {
+        backdropFilter: 'blur(15px)',
+        // @ts-ignore
+        experimental_backdropFilter: 'blur(15px)',
+      },
+      default: {},
+    }),
+  },
   trendSummaryIcon: { width: 40, height: 40, borderRadius: 14, justifyContent: 'center', alignItems: 'center' },
   trendSummaryValue: { fontSize: 20, fontWeight: '800' },
   trendSummaryLabel: { fontSize: 11, fontWeight: '600', opacity: 0.45 },

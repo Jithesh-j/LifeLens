@@ -41,6 +41,11 @@ class UserSettings(Base):
         default=False,
         nullable=False,
     )
+    weather_on_timeline: Mapped[bool] = mapped_column(
+        Boolean,
+        default=False,
+        nullable=False,
+    )
     notification_frequency: Mapped[str] = mapped_column(
         String(50),
         default="instant",

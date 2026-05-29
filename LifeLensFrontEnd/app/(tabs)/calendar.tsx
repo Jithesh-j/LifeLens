@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { StyleSheet, View, ScrollView, TouchableOpacity } from 'react-native';
+import { StyleSheet, View, ScrollView, TouchableOpacity, Platform } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useSchedule, getTodayDateStr } from '@/context/schedule';
 import { useCalendarUI } from '@/context/calendar-ui';
@@ -7,6 +7,18 @@ import { ThemedText } from '@/components/themed-text';
 import { useThemeColor } from '@/hooks/use-theme-color';
 import { IconSymbol } from '@/components/ui/icon-symbol';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+
+const getWeatherEmoji = (condition?: string) => {
+  switch (condition?.toLowerCase()) {
+    case 'sunny': return '☀️';
+    case 'cloudy': return '🌥';
+    case 'foggy': return '🌫️';
+    case 'rainy': return '🌧️';
+    case 'snowy': return '❄️';
+    case 'stormy': return '⛈️';
+    default: return '🌡️';
+  }
+};
 
 // Helper to get 7 days of the week containing a target date string
 const getDaysOfWeek = (targetDateStr: string) => {
@@ -76,9 +88,10 @@ export default function CalendarScreen() {
 
   // Themes & Styling Mappings
   const primaryColor = '#8F66FF';
-  const headerNavy = '#11132A';
+  const headerNavy = 'rgba(17, 19, 42, 0.65)';
   const accentGreen = '#34D399';
-  const cardBg = '#11132A';
+  const cardBg = 'rgba(17, 19, 42, 0.65)';
+  const glassBorder = 'rgba(255, 255, 255, 0.09)';
 
   // Dynamic monthly planner structure based on selected date's month
   const calendarDaysMonth = React.useMemo(() => {
@@ -201,6 +214,11 @@ export default function CalendarScreen() {
 
   return (
     <View style={styles.container}>
+      {/* Background Glow */}
+      <View style={styles.glowCircle1} />
+      <View style={styles.glowCircle2} />
+      <View style={styles.glowCircle3} />
+
       {calendarExpanded ? (
         <View style={{ flex: 1 }}>
           <View style={[styles.headerSection, { backgroundColor: headerNavy, paddingTop: insets.top > 0 ? insets.top + 32 : 80 }]}>
@@ -284,7 +302,22 @@ export default function CalendarScreen() {
                             </View>
                           )}
                         </View>
-                        <ThemedText style={[styles.cardDuration, { color: theme.text + '90' }]}>{event.timeRange}</ThemedText>
+                        <ThemedText style={[styles.cardDuration, { color: theme.text + '90' }]}>
+                          {event.timeRange} {event.duration && `• ${event.duration}`}
+                        </ThemedText>
+                        {event.location?.name && (
+                          <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 4 }}>
+                            <IconSymbol size={12} name="location.fill" color={theme.border} style={{ marginRight: 4 }} />
+                            <ThemedText style={{ fontSize: 12, color: theme.text + '80', fontWeight: '500' }}>
+                              {event.location.name}
+                            </ThemedText>
+                          </View>
+                        )}
+                        {event.weather && (
+                          <ThemedText style={{ fontSize: 12, color: theme.text + '80', marginTop: 4, fontWeight: '500' }}>
+                            {getWeatherEmoji(event.weather.condition)} {event.weather.condition} • {Math.round(event.weather.temperature_c)}°C
+                          </ThemedText>
+                        )}
                       </View>
                     </View>
                   );
@@ -407,8 +440,10 @@ export default function CalendarScreen() {
                         return (
                           <View key={event.id} style={[styles.eventCardTimeline, { backgroundColor: theme.bg, borderLeftColor: theme.border }]}>
                             <View style={styles.cardContent}>
-                              <View style={{ flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: 6, marginBottom: 4 }}>
-                                <ThemedText style={[styles.cardTitleTimeline, { color: theme.text }]}>{event.title}</ThemedText>
+                              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 4 }}>
+                                <ThemedText style={[styles.cardTitleTimeline, { color: theme.text }]} numberOfLines={1}>
+                                  {event.title}
+                                </ThemedText>
                                 {event.isAiExtracted && (
                                   <View style={[styles.aiBadge, { backgroundColor: primaryColor + '12' }]}>
                                     <ThemedText style={{ fontSize: 9, fontWeight: '700', color: primaryColor }}>AI</ThemedText>
@@ -418,6 +453,19 @@ export default function CalendarScreen() {
                               <ThemedText style={[styles.cardTimeTimeline, { color: theme.text + '90', marginTop: 0 }]}>
                                 {event.timeRange} {event.duration && `• ${event.duration}`}
                               </ThemedText>
+                              {event.location?.name && (
+                                <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 4 }}>
+                                  <IconSymbol size={12} name="location.fill" color={theme.border} style={{ marginRight: 4 }} />
+                                  <ThemedText style={{ fontSize: 12, color: theme.text + '80', fontWeight: '500' }}>
+                                    {event.location.name}
+                                  </ThemedText>
+                                </View>
+                              )}
+                              {event.weather && (
+                                <ThemedText style={{ fontSize: 12, color: theme.text + '80', marginTop: 4, fontWeight: '500' }}>
+                                  {getWeatherEmoji(event.weather.condition)} {event.weather.condition} • {Math.round(event.weather.temperature_c)}°C
+                                </ThemedText>
+                              )}
                             </View>
                             <IconSymbol size={20} name={event.icon} color={theme.border} />
                           </View>
@@ -439,8 +487,33 @@ export default function CalendarScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#080916' },
-  headerSection: { paddingHorizontal: 20, paddingBottom: 22, borderBottomLeftRadius: 32, borderBottomRightRadius: 32 },
-  headerTop: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 },
+
+  glowCircle1: { position: 'absolute', top: 40, left: -100, width: 360, height: 360, borderRadius: 180, backgroundColor: 'rgba(143, 102, 255, 0.10)', zIndex: 0 },
+  glowCircle2: { position: 'absolute', bottom: 100, right: -120, width: 380, height: 380, borderRadius: 190, backgroundColor: 'rgba(59, 130, 246, 0.08)', zIndex: 0 },
+  glowCircle3: { position: 'absolute', top: '40%', right: -80, width: 300, height: 300, borderRadius: 150, backgroundColor: 'rgba(6, 182, 212, 0.07)', zIndex: 0 },
+
+  headerSection: {
+    paddingHorizontal: 20,
+    paddingBottom: 22,
+    borderBottomLeftRadius: 32,
+    borderBottomRightRadius: 32,
+    borderBottomWidth: 1.2,
+    borderBottomColor: 'rgba(255,255,255,0.08)',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.05,
+    shadowRadius: 10,
+    elevation: 3,
+    ...Platform.select({
+      web: {
+        backdropFilter: 'blur(20px)',
+        // @ts-ignore
+        experimental_backdropFilter: 'blur(20px)',
+      },
+      default: {},
+    }),
+  },
+  headerTop: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20, zIndex: 1 },
   headerTitle: { color: '#fff', fontSize: 24, fontWeight: '800', lineHeight: 32, paddingTop: 4 },
   menuIcon: { padding: 6 },
   weekdayRow: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 10 },
@@ -453,10 +526,51 @@ const styles = StyleSheet.create({
   eventDot: { width: 4, height: 4, borderRadius: 2, marginTop: 2 },
   eventsPanel: { flex: 1, paddingTop: 16, paddingHorizontal: 20 },
   panelHeader: { flexDirection: 'row', justifyContent: 'flex-start', marginBottom: 14 },
-  dropdownButton: { flexDirection: 'row', alignItems: 'center', paddingVertical: 8, paddingHorizontal: 16, borderRadius: 14, gap: 8, backgroundColor: '#11132A', borderWidth: 1, borderColor: 'rgba(255,255,255,0.06)' },
+  dropdownButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 8,
+    paddingHorizontal: 16,
+    borderRadius: 14,
+    gap: 8,
+    backgroundColor: 'rgba(17, 19, 42, 0.65)',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.09)',
+    ...Platform.select({
+      web: {
+        backdropFilter: 'blur(10px)',
+        // @ts-ignore
+        experimental_backdropFilter: 'blur(10px)',
+      },
+      default: {},
+    }),
+  },
   dropdownText: { fontSize: 14, fontWeight: '700', color: '#fff', opacity: 0.8 },
   eventsScroll: { paddingBottom: 130, gap: 12 },
-  eventCard: { flexDirection: 'row', borderRadius: 18, paddingVertical: 14, paddingHorizontal: 16, borderLeftWidth: 4.5, alignItems: 'center', borderWidth: 1, borderColor: 'rgba(255,255,255,0.05)', shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.05, shadowRadius: 4, elevation: 1 },
+  eventCard: {
+    flexDirection: 'row',
+    borderRadius: 18,
+    paddingVertical: 14,
+    paddingHorizontal: 16,
+    borderLeftWidth: 4.5,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.08)',
+    backgroundColor: 'rgba(17, 19, 42, 0.62)',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.04,
+    shadowRadius: 6,
+    elevation: 1,
+    ...Platform.select({
+      web: {
+        backdropFilter: 'blur(15px)',
+        // @ts-ignore
+        experimental_backdropFilter: 'blur(15px)',
+      },
+      default: {},
+    }),
+  },
   cardHeaderBox: { width: 75, alignItems: 'flex-start' },
   timeBadge: { fontSize: 13, fontWeight: '700', color: 'rgba(255,255,255,0.5)' },
   connector: { width: 2, height: 12, backgroundColor: 'rgba(255, 255, 255, 0.08)', marginLeft: 14, marginTop: 4 },
@@ -467,21 +581,48 @@ const styles = StyleSheet.create({
   emptyText: { color: 'rgba(255,255,255,0.4)', fontSize: 15, fontWeight: '600' },
   badgeContainer: { paddingHorizontal: 12, paddingVertical: 5, borderRadius: 12, alignSelf: 'flex-start', marginBottom: 6 },
   calendarStrip: { flexDirection: 'row', justifyContent: 'space-between', marginTop: 6 },
-  dayCard: { width: 44, height: 64, borderRadius: 14, justifyContent: 'center', alignItems: 'center', backgroundColor: 'rgba(255,255,255,0.06)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.04)' },
+  dayCard: {
+    width: 44,
+    height: 64,
+    borderRadius: 14,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: 'rgba(255,255,255,0.05)',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.07)',
+  },
   selectedDayCard: { shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.15, shadowRadius: 6, elevation: 3 },
   dayName: { fontSize: 12, color: '#B0B0C4', fontWeight: '600' },
   dayNum: { fontSize: 16, color: '#fff', fontWeight: '700', marginTop: 4 },
   timelineScroll: { paddingHorizontal: 20, paddingTop: 20, paddingBottom: 130 },
-  todayHeaderBox: { marginBottom: 16 },
+  todayHeaderBox: { marginBottom: 16, zIndex: 1 },
   todayTitle: { fontSize: 22, fontWeight: '800', color: '#fff' },
   todayDateSub: { fontSize: 14, opacity: 0.5, marginTop: 2, color: '#fff' },
-  suggestionBanner: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', padding: 16, borderRadius: 18, marginBottom: 20, borderWidth: 1, borderColor: 'rgba(52, 211, 153, 0.25)' },
+  suggestionBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    padding: 16,
+    borderRadius: 18,
+    marginBottom: 20,
+    borderWidth: 1,
+    borderColor: 'rgba(52, 211, 153, 0.25)',
+    backgroundColor: 'rgba(52, 211, 153, 0.06)',
+    ...Platform.select({
+      web: {
+        backdropFilter: 'blur(12px)',
+        // @ts-ignore
+        experimental_backdropFilter: 'blur(12px)',
+      },
+      default: {},
+    }),
+  },
   suggestionLeft: { flexDirection: 'row', alignItems: 'center', flex: 1 },
   suggestionTitle: { fontSize: 15, fontWeight: '700' },
   suggestionDesc: { fontSize: 12, marginTop: 2 },
   addSuggestionBtn: { paddingHorizontal: 16, paddingVertical: 8, borderRadius: 12 },
   addSuggestionText: { fontSize: 13, fontWeight: '700' },
-  timelineSectionTitle: { fontSize: 14, fontWeight: '800', opacity: 0.5, marginBottom: 16, textTransform: 'uppercase', letterSpacing: 0.8, color: '#fff' },
+  timelineSectionTitle: { fontSize: 14, fontWeight: '800', opacity: 0.5, marginBottom: 16, textTransform: 'uppercase', letterSpacing: 0.8, color: '#fff', zIndex: 1 },
   timelineRow: { flexDirection: 'row', minHeight: 88 },
   timeLabelContainer: { width: 70, alignItems: 'flex-end', paddingRight: 10, paddingTop: 2 },
   timeLabel: { fontSize: 13, fontWeight: '700', color: 'rgba(255, 255, 255, 0.4)' },
@@ -489,7 +630,31 @@ const styles = StyleSheet.create({
   nodeDot: { width: 10, height: 10, borderRadius: 5, borderWidth: 2, backgroundColor: '#080916', zIndex: 1 },
   nodeLine: { width: 2, position: 'absolute', top: 16, bottom: -16 },
   cardsContainer: { flex: 1, paddingLeft: 12, paddingBottom: 16, gap: 8 },
-  eventCardTimeline: { flexDirection: 'row', borderRadius: 16, paddingVertical: 14, paddingHorizontal: 16, borderLeftWidth: 4.5, alignItems: 'center', justifyContent: 'space-between', borderWidth: 1, borderColor: 'rgba(255,255,255,0.05)', shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.05, shadowRadius: 4, elevation: 1 },
+  eventCardTimeline: {
+    flexDirection: 'row',
+    borderRadius: 16,
+    paddingVertical: 14,
+    paddingHorizontal: 16,
+    borderLeftWidth: 4.5,
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.08)',
+    backgroundColor: 'rgba(17, 19, 42, 0.62)',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.04,
+    shadowRadius: 8,
+    elevation: 1,
+    ...Platform.select({
+      web: {
+        backdropFilter: 'blur(15px)',
+        // @ts-ignore
+        experimental_backdropFilter: 'blur(15px)',
+      },
+      default: {},
+    }),
+  },
   cardTitleTimeline: { fontSize: 15, fontWeight: '700' },
   cardTimeTimeline: { fontSize: 13, marginTop: 4, fontWeight: '500' },
   emptySlotCard: { height: 48 },

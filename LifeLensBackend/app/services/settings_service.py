@@ -36,6 +36,7 @@ async def get_or_create_user_settings(
             location_enabled=False,
             smart_activity_detection=False,
             smart_notifications=False,
+            weather_on_timeline=False,
             notification_frequency="instant",
         )
         db.add(settings)
@@ -61,6 +62,8 @@ async def update_user_settings(
         settings.smart_activity_detection = payload.smart_activity_detection
     if payload.smart_notifications is not None:
         settings.smart_notifications = payload.smart_notifications
+    if payload.weather_on_timeline is not None:
+        settings.weather_on_timeline = payload.weather_on_timeline
     if payload.notification_frequency is not None:
         settings.notification_frequency = payload.notification_frequency
 

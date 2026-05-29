@@ -15,6 +15,7 @@ class UserSettingsBase(BaseModel):
     location_enabled: bool = False
     smart_activity_detection: bool = False
     smart_notifications: bool = False
+    weather_on_timeline: bool = False
     notification_frequency: str = "instant"
 
 
@@ -24,6 +25,7 @@ class UserSettingsUpdate(BaseModel):
     location_enabled: bool | None = None
     smart_activity_detection: bool | None = None
     smart_notifications: bool | None = None
+    weather_on_timeline: bool | None = None
     notification_frequency: str | None = None
 
 

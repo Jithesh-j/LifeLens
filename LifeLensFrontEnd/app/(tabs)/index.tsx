@@ -10,6 +10,7 @@ import {
   Modal,
   TextInput,
   ActivityIndicator,
+  Platform,
 } from 'react-native';
 import { useRouter, useNavigation } from 'expo-router';
 import * as SecureStore from 'expo-secure-store';
@@ -28,8 +29,8 @@ const SCREEN_WIDTH = Dimensions.get('window').width;
 const PURPLE = '#8F66FF';
 const LIGHT_PURPLE = '#C4A8FF';
 const DARK_BG = '#080916';
-const CARD_BG = '#11132A';
-const GLASS_BORDER = 'rgba(255, 255, 255, 0.06)';
+const CARD_BG = 'rgba(17, 19, 42, 0.65)';
+const GLASS_BORDER = 'rgba(255, 255, 255, 0.09)';
 const GREEN = '#34D399';
 const BLUE = '#3B82F6';
 const AMBER = '#F59E0B';
@@ -61,6 +62,13 @@ interface UnifiedEvent {
   icon: any;
   color: string;
   source: 'local' | 'google';
+  weather?: {
+    temperature_c: number;
+    temperature_f: number;
+    condition: string;
+    windSpeed: number;
+    humidity: number;
+  };
 }
 
 function formatTime12h(isoOrTime: string): string {
@@ -106,6 +114,18 @@ const COLOR_MAP: Record<string, string> = {
   gray: BLUE,
 };
 
+const getWeatherEmoji = (condition?: string) => {
+  switch (condition?.toLowerCase()) {
+    case 'sunny': return '☀️';
+    case 'cloudy': return '🌥';
+    case 'foggy': return '🌫️';
+    case 'rainy': return '🌧️';
+    case 'snowy': return '❄️';
+    case 'stormy': return '⛈️';
+    default: return '🌡️';
+  }
+};
+
 function mergeEvents(
   localItems: ScheduleItem[],
   googleEvents: GoogleCalendarEvent[],
@@ -133,6 +153,7 @@ function mergeEvents(
         icon: ICON_MAP[item.icon] || 'calendar',
         color: COLOR_MAP[item.color] || PURPLE,
         source: 'local',
+        weather: item.weather,
         _sortKey: sortKey,
       });
     });
@@ -365,41 +386,66 @@ export default function HomeScreen() {
   const [weatherLoading, setWeatherLoading] = useState(false);
 
   const fetchWeather = async () => {
+    if (!user) return;
     setWeatherLoading(true);
     try {
-      let lat = 37.7749; // Default San Francisco
-      let lon = -122.4194;
+      let lat: number | null = null;
+      let lon: number | null = null;
 
-      // Try to get dynamic device location if foreground permission is granted
-      const { status } = await Location.requestForegroundPermissionsAsync();
-      if (status === 'granted') {
-        const location = await Location.getCurrentPositionAsync({});
-        lat = location.coords.latitude;
-        lon = location.coords.longitude;
+      // 1. Fetch user-specific settings to honor Location Intelligence preferences
+      const settings = await api.getUserSettings();
+      const isLocationIntelEnabled = settings.location_enabled;
+
+      if (isLocationIntelEnabled) {
+        // Request location permission before calling weather API
+        const { status } = await Location.requestForegroundPermissionsAsync();
+        if (status === 'granted') {
+          // Try getting last known location first (instant cached response)
+          const lastKnown = await Location.getLastKnownPositionAsync({});
+          if (lastKnown) {
+            lat = lastKnown.coords.latitude;
+            lon = lastKnown.coords.longitude;
+          }
+
+          // Then retrieve balanced accuracy current position (extremely fast and accurate)
+          try {
+            const location = await Location.getCurrentPositionAsync({
+              accuracy: Location.Accuracy.Balanced,
+            });
+            lat = location.coords.latitude;
+            lon = location.coords.longitude;
+          } catch (e) {
+            console.warn('getCurrentPositionAsync failed, keeping last known:', e);
+          }
+        }
       }
 
-      const response = await fetch(
-        `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current_weather=true`
-      );
-      if (response.ok) {
-        const data = await response.json();
-        const tempC = data.current_weather.temperature;
-        const tempF = Math.round((tempC * 9) / 5 + 32);
-        const code = data.current_weather.weathercode;
+      // 2. Request weather from our user-isolated backend API
+      const timestamp = new Date().toISOString();
+      const weather = await api.getWeather(lat, lon, timestamp);
 
-        // Map weathercode to emoji
-        let emoji = '🌡️';
-        if (code === 0) emoji = '☀️';
-        else if (code >= 1 && code <= 3) emoji = '⛅';
-        else if (code === 45 || code === 48) emoji = '🌫️';
-        else if ((code >= 51 && code <= 57) || (code >= 61 && code <= 67) || (code >= 80 && code <= 82)) emoji = '🌧️';
-        else if ((code >= 71 && code <= 77) || (code >= 85 && code <= 86)) emoji = '❄️';
-        else if (code >= 95 && code <= 99) emoji = '⛈️';
-
-        setWeatherText(`${emoji} ${tempF}°F / ${Math.round(tempC)}°C`);
+      if (weather.status === 'location_unavailable' || weather.temperature_c === undefined || weather.temperature_f === undefined || weather.weathercode === undefined) {
+        setWeatherText('Location Unavailable');
+        return;
       }
+
+      const tempC = weather.temperature_c;
+      const tempF = weather.temperature_f;
+      const code = weather.weathercode;
+
+      // Map weathercode to emoji
+      let emoji = '🌡️';
+      if (code === 0) emoji = '☀️';
+      else if (code >= 1 && code <= 3) emoji = '⛅';
+      else if (code === 45 || code === 48) emoji = '🌫️';
+      else if ((code >= 51 && code <= 57) || (code >= 61 && code <= 67) || (code >= 80 && code <= 82)) emoji = '🌧️';
+      else if ((code >= 71 && code <= 77) || (code >= 85 && code <= 86)) emoji = '❄️';
+      else if (code >= 95 && code <= 99) emoji = '⛈️';
+
+      setWeatherText(`${emoji} ${tempF}°F / ${Math.round(tempC)}°C`);
     } catch (err) {
-      console.warn('Failed to fetch weather:', err);
+      console.warn('Failed to fetch user-isolated weather:', err);
+      setWeatherText('Location Unavailable');
     } finally {
       setWeatherLoading(false);
     }
@@ -437,8 +483,58 @@ export default function HomeScreen() {
     }
   };
 
+  // 1. Refresh weather every 10 minutes (600,000 ms) while mounted
   useEffect(() => {
-    fetchWeather();
+    fetchWeather(); // Fetch immediately on mount or user change
+    const interval = setInterval(() => {
+      console.log('⏰ [Weather] Auto-refreshing weather conditions...');
+      fetchWeather();
+    }, 600000);
+    return () => clearInterval(interval);
+  }, [user]);
+
+  // 2. Watch for physical location changes to trigger rapid refresh
+  useEffect(() => {
+    if (!user) return;
+    let subscription: any = null;
+
+    async function startWatchingLocation() {
+      try {
+        const settings = await api.getUserSettings();
+        if (!settings.location_enabled) {
+          console.log('📡 [Location Watcher] Location Intelligence is disabled. Skipping GPS watch.');
+          return;
+        }
+
+        const { status } = await Location.requestForegroundPermissionsAsync();
+        if (status === 'granted') {
+          subscription = await Location.watchPositionAsync(
+            {
+              accuracy: Location.Accuracy.Balanced,
+              timeInterval: 30000,   // Check every 30 seconds
+              distanceInterval: 100,  // Or when moved more than 100 meters
+            },
+            (pos) => {
+              console.log('📡 [Location Shift] Device moved, refreshing weather context...');
+              fetchWeather();
+            }
+          );
+        }
+      } catch (err) {
+        console.warn('Location change watching failed:', err);
+      }
+    }
+
+    startWatchingLocation();
+    return () => {
+      if (subscription) {
+        subscription.remove();
+      }
+    };
+  }, [user]);
+
+  // 3. Refresh weather on app mount & screen focus
+  useEffect(() => {
     if (user) {
       loadLocationSuggestion();
     }
@@ -727,6 +823,7 @@ export default function HomeScreen() {
       {/* Background Glow */}
       <View style={s.glowCircle1} />
       <View style={s.glowCircle2} />
+      <View style={s.glowCircle3} />
 
       <ScrollView 
         contentContainerStyle={[
@@ -889,7 +986,16 @@ export default function HomeScreen() {
                   key={ev.id}
                   style={[s.scheduleRow, idx < Math.min(mergedEvents.length, 3) - 1 && s.scheduleRowBorder]}>
                   <ThemedText style={s.scheduleTime}>{ev.time}</ThemedText>
-                  <ThemedText style={s.scheduleTitle} numberOfLines={1}>{ev.title}</ThemedText>
+                  <View style={{ flex: 1, marginHorizontal: 12 }}>
+                    <ThemedText style={[s.scheduleTitle, { flex: 0 }]} numberOfLines={1}>
+                      {ev.title}
+                    </ThemedText>
+                    {ev.weather && (
+                      <ThemedText style={{ fontSize: 11, color: 'rgba(255, 255, 255, 0.5)', marginTop: 2 }}>
+                        {getWeatherEmoji(ev.weather.condition)} {ev.weather.condition} • {Math.round(ev.weather.temperature_c)}°C
+                      </ThemedText>
+                    )}
+                  </View>
                   <View style={[s.scheduleIconCircle, { backgroundColor: ev.color + '15' }]}>
                     <IconSymbol size={16} name={ev.icon} color={ev.color} />
                   </View>
@@ -1198,8 +1304,9 @@ export default function HomeScreen() {
 const s = StyleSheet.create({
   container: { flex: 1, backgroundColor: DARK_BG },
 
-  glowCircle1: { position: 'absolute', top: 80, left: -60, width: 220, height: 220, borderRadius: 110, backgroundColor: 'rgba(143, 102, 255, 0.05)' },
-  glowCircle2: { position: 'absolute', bottom: 120, right: -50, width: 240, height: 240, borderRadius: 120, backgroundColor: 'rgba(100, 181, 246, 0.04)' },
+  glowCircle1: { position: 'absolute', top: 40, left: -100, width: 360, height: 360, borderRadius: 180, backgroundColor: 'rgba(143, 102, 255, 0.10)' },
+  glowCircle2: { position: 'absolute', bottom: 100, right: -120, width: 380, height: 380, borderRadius: 190, backgroundColor: 'rgba(59, 130, 246, 0.08)' },
+  glowCircle3: { position: 'absolute', top: '40%', right: -80, width: 300, height: 300, borderRadius: 150, backgroundColor: 'rgba(6, 182, 212, 0.07)' },
 
   scrollContent: { paddingHorizontal: 20, paddingBottom: 130, gap: 20 },
 
@@ -1212,7 +1319,27 @@ const s = StyleSheet.create({
   notifBadge: { width: 42, height: 42, borderRadius: 21, backgroundColor: 'rgba(143, 102, 255, 0.12)', justifyContent: 'center', alignItems: 'center', marginTop: 2 },
 
   // AI Suggestion Card
-  suggestionCard: { borderRadius: 24, padding: 20, backgroundColor: CARD_BG, borderWidth: 1, borderColor: GLASS_BORDER, overflow: 'hidden' },
+  suggestionCard: {
+    borderRadius: 24,
+    padding: 20,
+    backgroundColor: CARD_BG,
+    borderWidth: 1,
+    borderColor: GLASS_BORDER,
+    overflow: 'hidden',
+    shadowColor: '#8F66FF',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.06,
+    shadowRadius: 16,
+    elevation: 3,
+    ...Platform.select({
+      web: {
+        backdropFilter: 'blur(20px)',
+        // @ts-ignore
+        experimental_backdropFilter: 'blur(20px)',
+      },
+      default: {},
+    }),
+  },
   suggestionHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 },
   suggestionHeaderText: { color: '#fff', fontSize: 16, fontWeight: '800' },
   bestForYouBadge: { backgroundColor: 'rgba(143, 102, 255, 0.15)', paddingHorizontal: 10, paddingVertical: 4, borderRadius: 8 },
@@ -1239,7 +1366,26 @@ const s = StyleSheet.create({
   sectionLink: { color: PURPLE, fontSize: 13, fontWeight: '700' },
 
   // Schedule Card
-  scheduleCard: { borderRadius: 20, backgroundColor: CARD_BG, borderWidth: 1, borderColor: GLASS_BORDER, overflow: 'hidden' },
+  scheduleCard: {
+    borderRadius: 20,
+    backgroundColor: CARD_BG,
+    borderWidth: 1,
+    borderColor: GLASS_BORDER,
+    overflow: 'hidden',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.04,
+    shadowRadius: 12,
+    elevation: 2,
+    ...Platform.select({
+      web: {
+        backdropFilter: 'blur(20px)',
+        // @ts-ignore
+        experimental_backdropFilter: 'blur(20px)',
+      },
+      default: {},
+    }),
+  },
   scheduleRow: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 14, gap: 14 },
   scheduleRowBorder: { borderBottomWidth: 1, borderBottomColor: 'rgba(255, 255, 255, 0.06)' },
   scheduleTime: { color: LIGHT_PURPLE, fontSize: 13, fontWeight: '800', width: 78 },
@@ -1254,7 +1400,30 @@ const s = StyleSheet.create({
 
   // Daily Summary
   summaryStrip: { flexDirection: 'row', gap: 10 },
-  summaryCard: { flex: 1, paddingVertical: 16, paddingHorizontal: 8, borderRadius: 18, alignItems: 'center', gap: 6, backgroundColor: CARD_BG, borderWidth: 1, borderColor: GLASS_BORDER },
+  summaryCard: {
+    flex: 1,
+    paddingVertical: 16,
+    paddingHorizontal: 8,
+    borderRadius: 18,
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: CARD_BG,
+    borderWidth: 1,
+    borderColor: GLASS_BORDER,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.03,
+    shadowRadius: 8,
+    elevation: 1,
+    ...Platform.select({
+      web: {
+        backdropFilter: 'blur(15px)',
+        // @ts-ignore
+        experimental_backdropFilter: 'blur(15px)',
+      },
+      default: {},
+    }),
+  },
   summaryValue: { fontSize: 14, fontWeight: '900' },
   summaryLabel: { fontSize: 11, fontWeight: '800', color: LIGHT_PURPLE },
 
@@ -1271,20 +1440,41 @@ const s = StyleSheet.create({
   // ── Quick Event Modal & Toast Styles ───────────────────────────────────────
   modalOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(10, 12, 27, 0.85)',
+    backgroundColor: 'rgba(8, 9, 22, 0.80)',
     justifyContent: 'center',
     alignItems: 'center',
     padding: 20,
+    ...Platform.select({
+      web: {
+        backdropFilter: 'blur(8px)',
+        // @ts-ignore
+        experimental_backdropFilter: 'blur(8px)',
+      },
+      default: {},
+    }),
   },
   modalContainer: {
     width: '100%',
     maxWidth: 400,
-    backgroundColor: '#161932',
+    backgroundColor: 'rgba(22, 25, 50, 0.75)',
     borderRadius: 24,
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.14)',
+    borderWidth: 1.2,
+    borderColor: 'rgba(255, 255, 255, 0.12)',
     padding: 22,
     gap: 12,
+    shadowColor: '#8F66FF',
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.15,
+    shadowRadius: 24,
+    elevation: 10,
+    ...Platform.select({
+      web: {
+        backdropFilter: 'blur(30px)',
+        // @ts-ignore
+        experimental_backdropFilter: 'blur(30px)',
+      },
+      default: {},
+    }),
   },
   modalHeader: {
     flexDirection: 'row',
@@ -1633,18 +1823,43 @@ const s = StyleSheet.create({
   },
   // Location Suggestion Edit modal styles
   locEditBg: {
-    flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.6)',
+    position: 'absolute',
+    top: 0,
+    bottom: 0,
+    left: 0,
+    right: 0,
+    backgroundColor: 'rgba(8, 9, 22, 0.80)',
     justifyContent: 'center',
     padding: 20,
     zIndex: 99999,
+    ...Platform.select({
+      web: {
+        backdropFilter: 'blur(8px)',
+        // @ts-ignore
+        experimental_backdropFilter: 'blur(8px)',
+      },
+      default: {},
+    }),
   },
   locEditCard: {
     backgroundColor: CARD_BG,
     borderRadius: 20,
-    borderWidth: 1,
+    borderWidth: 1.2,
     borderColor: GLASS_BORDER,
     padding: 20,
+    shadowColor: '#8F66FF',
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.15,
+    shadowRadius: 24,
+    elevation: 10,
+    ...Platform.select({
+      web: {
+        backdropFilter: 'blur(30px)',
+        // @ts-ignore
+        experimental_backdropFilter: 'blur(30px)',
+      },
+      default: {},
+    }),
   },
   locEditHeader: {
     flexDirection: 'row',

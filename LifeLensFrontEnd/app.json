@@ -39,7 +39,13 @@
           }
         }
       ],
-      "expo-secure-store"
+      "expo-secure-store",
+      [
+        "expo-location",
+        {
+          "locationAlwaysAndWhenInUsePermission": "Allow AuraJournal to access your location to show live weather and intelligent geofenced suggestions."
+        }
+      ]
     ],
     "experiments": {
       "typedRoutes": true,

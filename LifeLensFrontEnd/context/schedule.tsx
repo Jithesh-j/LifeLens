@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import * as SecureStore from 'expo-secure-store';
+import * as Location from 'expo-location';
 import { api } from '@/services/api';
 import { useAuth } from '@/context/auth';
 
@@ -26,6 +27,19 @@ export interface ScheduleItem {
     durationSeconds: number;
     createdAt: string;
   };
+  // Weather Context Enrichment fields
+  location?: {
+    name: string;
+    latitude?: number;
+    longitude?: number;
+  };
+  weather?: {
+    temperature_c: number;
+    temperature_f: number;
+    condition: string;
+    windSpeed: number;
+    humidity: number;
+  };
 }
 
 interface ScheduleContextType {
@@ -35,7 +49,7 @@ interface ScheduleContextType {
     dateStr?: string, 
     approvedEvents?: ScheduleItem[],
     audioDetails?: { audioUri: string; durationSeconds: number; createdAt: string }
-  ) => void;
+  ) => Promise<void>;
   approveSuggestion: (id: string) => void;
 }
 
@@ -49,6 +63,42 @@ export const getTodayDateStr = () => {
   const dd = String(today.getDate()).padStart(2, '0');
   return `${yyyy}-${mm}-${dd}`;
 };
+
+// Helper to check if two activity titles are similar (e.g., "Swim" vs "Swimming", "Coffee Break" vs "Coffee")
+export const areTitlesSimilar = (t1: string, t2: string): boolean => {
+  const clean1 = t1.toLowerCase().replace('suggested: ', '').replace('needs review: ', '').trim();
+  const clean2 = t2.toLowerCase().replace('suggested: ', '').replace('needs review: ', '').trim();
+  if (clean1 === clean2) return true;
+  // Substring match
+  if (clean1.includes(clean2) || clean2.includes(clean1)) return true;
+  // Common word prefix (e.g. "swim" and "swimming", "coffee" and "coffee break")
+  const words1 = clean1.split(/\s+/);
+  const words2 = clean2.split(/\s+/);
+  if (words1.length > 0 && words2.length > 0) {
+    const firstWord1 = words1[0];
+    const firstWord2 = words2[0];
+    if (firstWord1.startsWith(firstWord2) || firstWord2.startsWith(firstWord1) || firstWord1.includes(firstWord2) || firstWord2.includes(firstWord1)) {
+      if (Math.min(firstWord1.length, firstWord2.length) >= 3) {
+        return true;
+      }
+    }
+  }
+  return false;
+};
+
+// Helper to check if two times are within 15 minutes of each other
+export const areTimesClose = (timeStr1?: string, timeStr2?: string): boolean => {
+  if (!timeStr1 || !timeStr2) return false;
+  try {
+    const d1 = new Date(timeStr1).getTime();
+    const d2 = new Date(timeStr2).getTime();
+    if (isNaN(d1) || isNaN(d2)) return false;
+    return Math.abs(d1 - d2) <= 15 * 60 * 1000; // 15 minutes in ms
+  } catch {
+    return false;
+  }
+};
+
 
 const INITIAL_SCHEDULE: ScheduleItem[] = [
   {
@@ -431,7 +481,7 @@ export function parseNotesToEvents(text: string, dateStr = getTodayDateStr()): S
   const uniqueEvents: ScheduleItem[] = [];
   events.forEach((ev) => {
     const isDuplicate = uniqueEvents.some(
-      (u) => u.title.toLowerCase() === ev.title.toLowerCase() && u.startTime === ev.startTime
+      (u) => areTitlesSimilar(u.title, ev.title) && (u.startTime === ev.startTime || areTimesClose(u.startTime, ev.startTime))
     );
     if (!isDuplicate) {
       uniqueEvents.push(ev);
@@ -441,40 +491,78 @@ export function parseNotesToEvents(text: string, dateStr = getTodayDateStr()): S
   return uniqueEvents;
 }
 
+// Helpers to load/save large strings in SecureStore using chunking (safe 2048-byte limits)
+const saveSecureStoreLarge = async (key: string, value: string) => {
+  try {
+    const chunkSize = 1500; // Well below 2048 to prevent any padding overhead warnings
+    const numChunks = Math.ceil(value.length / chunkSize);
+    
+    // Save metadata first
+    await SecureStore.setItemAsync(`${key}_metadata`, JSON.stringify({ count: numChunks }));
+    
+    // Save chunks
+    for (let i = 0; i < numChunks; i++) {
+      const chunk = value.substring(i * chunkSize, (i + 1) * chunkSize);
+      await SecureStore.setItemAsync(`${key}_chunk_${i}`, chunk);
+    }
+  } catch (err) {
+    console.error('Failed to save large item in SecureStore:', err);
+  }
+};
+
+const loadSecureStoreLarge = async (key: string): Promise<string | null> => {
+  try {
+    const metaStr = await SecureStore.getItemAsync(`${key}_metadata`);
+    if (!metaStr) return null;
+    
+    const { count } = JSON.parse(metaStr) as { count: number };
+    let fullStr = '';
+    
+    for (let i = 0; i < count; i++) {
+      const chunk = await SecureStore.getItemAsync(`${key}_chunk_${i}`);
+      if (chunk) {
+        fullStr += chunk;
+      }
+    }
+    return fullStr;
+  } catch (err) {
+    console.error('Failed to load large item from SecureStore:', err);
+    return null;
+  }
+};
+
 export function ScheduleProvider({ children }: { children: React.ReactNode }) {
   const [scheduleItems, setScheduleItems] = useState<ScheduleItem[]>([]);
-  const { token } = useAuth();
+  const { token, user } = useAuth();
 
-  // Load offline local backup on mount
+  const userBackupKey = user ? `${user.id}_local_activities_backup` : null;
+
+  // Load offline local backup on mount or when user shifts
   useEffect(() => {
     async function loadLocalBackup() {
+      if (!userBackupKey) {
+        setScheduleItems([]);
+        return;
+      }
       try {
-        const backupStr = await SecureStore.getItemAsync('local_activities_backup');
+        const backupStr = await loadSecureStoreLarge(userBackupKey);
         if (backupStr) {
           const backupItems = JSON.parse(backupStr) as ScheduleItem[];
           console.log('💾 [Offline Backup] Loaded local backup:', backupItems.length, 'items');
-          setScheduleItems((prev) => {
-            const merged = [...prev];
-            backupItems.forEach((backup) => {
-              const exists = merged.some(
-                (item) => item.date === backup.date && item.title.toLowerCase() === backup.title.toLowerCase() && item.startTime === backup.startTime
-              );
-              if (!exists) {
-                merged.push(backup);
-              }
-            });
-            return merged;
-          });
+          setScheduleItems(backupItems);
+        } else {
+          setScheduleItems([]);
         }
       } catch (err) {
-        console.error('Failed to load local backup from SecureStore:', err);
+        console.error('Failed to load local backup from SecureStore (chunked):', err);
+        setScheduleItems([]);
       }
     }
     loadLocalBackup();
-  }, []);
+  }, [userBackupKey]);
 
   const fetchUserSchedule = async () => {
-    if (!token) {
+    if (!token || !userBackupKey) {
       setScheduleItems([]);
       return;
     }
@@ -493,7 +581,7 @@ export function ScheduleProvider({ children }: { children: React.ReactNode }) {
       const uniqueEvents: ScheduleItem[] = [];
       fetchedEvents.forEach((ev) => {
         const isDuplicate = uniqueEvents.some(
-          (u) => u.title.toLowerCase() === ev.title.toLowerCase() && u.startTime === ev.startTime && u.date === ev.date
+          (u) => u.date === ev.date && areTitlesSimilar(u.title, ev.title) && (u.startTime === ev.startTime || areTimesClose(u.startTime, ev.startTime))
         );
         if (!isDuplicate) {
           uniqueEvents.push(ev);
@@ -505,7 +593,7 @@ export function ScheduleProvider({ children }: { children: React.ReactNode }) {
         const merged = [...prev];
         uniqueEvents.forEach((fe) => {
           const exists = merged.some(
-            (item) => item.date === fe.date && item.title.toLowerCase() === fe.title.toLowerCase() && item.startTime === fe.startTime
+            (item) => item.date === fe.date && areTitlesSimilar(item.title, fe.title) && (item.startTime === fe.startTime || areTimesClose(item.startTime, fe.startTime))
           );
           if (!exists) {
             merged.push(fe);
@@ -513,9 +601,7 @@ export function ScheduleProvider({ children }: { children: React.ReactNode }) {
         });
 
         // Sync consolidated list back to local backup
-        SecureStore.setItemAsync('local_activities_backup', JSON.stringify(merged)).catch((err) => {
-          console.error('Failed to save local backup from merge:', err);
-        });
+        saveSecureStoreLarge(userBackupKey, JSON.stringify(merged));
 
         return merged;
       });
@@ -526,7 +612,7 @@ export function ScheduleProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     fetchUserSchedule();
-  }, [token]);
+  }, [token, userBackupKey]);
 
   const approveSuggestion = (id: string) => {
     setScheduleItems((prev) => {
@@ -538,15 +624,15 @@ export function ScheduleProvider({ children }: { children: React.ReactNode }) {
         return item;
       });
 
-      SecureStore.setItemAsync('local_activities_backup', JSON.stringify(updated)).catch((err) => {
-        console.error('Failed to save local backup:', err);
-      });
+      if (userBackupKey) {
+        saveSecureStoreLarge(userBackupKey, JSON.stringify(updated));
+      }
 
       return updated;
     });
   };
 
-  const addNoteAndExtract = (
+  const addNoteAndExtract = async (
     text: string, 
     dateStr = getTodayDateStr(), 
     approvedEvents?: ScheduleItem[],
@@ -556,24 +642,162 @@ export function ScheduleProvider({ children }: { children: React.ReactNode }) {
       ? approvedEvents
       : parseNotesToEvents(text, dateStr);
 
-    const eventsWithAudio = eventsToAdd.map((ev) => ({
+    let enrichedEvents = eventsToAdd.map((ev) => ({
       ...ev,
       audioDetails: audioDetails || ev.audioDetails,
     }));
 
+    try {
+      const settings = await api.getUserSettings();
+      if (settings.weather_on_timeline) {
+        console.log('🌤️ [Schedule Weather] Weather Enrichment enabled. Fetching device coords as fallback...');
+        
+        let fallbackLat: number | undefined = undefined;
+        let fallbackLon: number | undefined = undefined;
+
+        try {
+          const { status } = await Location.getForegroundPermissionsAsync();
+          if (status === 'granted') {
+            const lastKnown = await Location.getLastKnownPositionAsync({});
+            if (lastKnown) {
+              fallbackLat = lastKnown.coords.latitude;
+              fallbackLon = lastKnown.coords.longitude;
+            }
+            const currentLoc = await Location.getCurrentPositionAsync({
+              accuracy: Location.Accuracy.Balanced,
+            });
+            if (currentLoc) {
+              fallbackLat = currentLoc.coords.latitude;
+              fallbackLon = currentLoc.coords.longitude;
+            }
+          }
+        } catch (locErr) {
+          console.warn('Fallback location fetch failed for timeline weather:', locErr);
+        }
+
+        console.log(`🌤️ [Schedule Weather] Fallback coords resolved: (${fallbackLat}, ${fallbackLon}). Enriching events...`);
+
+        enrichedEvents = await Promise.all(
+          enrichedEvents.map(async (ev) => {
+            let lat = ev.location?.latitude;
+            let lon = ev.location?.longitude;
+
+            // Try geocoding place name if coordinates are absent but name is present
+            if (ev.location?.name && (lat === undefined || lon === undefined)) {
+              try {
+                const nameLower = ev.location.name.toLowerCase();
+                if (nameLower.includes("discovery park")) {
+                  lat = 34.05;
+                  lon = -118.24;
+                } else {
+                  const geoResults = await Location.geocodeAsync(ev.location.name);
+                  if (geoResults && geoResults.length > 0) {
+                    lat = geoResults[0].latitude;
+                    lon = geoResults[0].longitude;
+                  }
+                }
+              } catch (geoErr) {
+                console.warn('Geocoding failed for event location:', ev.location.name, geoErr);
+              }
+            }
+
+            // Fallback to device coordinates if still undefined
+            if (lat === undefined || lon === undefined) {
+              lat = fallbackLat;
+              lon = fallbackLon;
+            }
+
+            if (lat !== undefined && lon !== undefined) {
+              try {
+                const eventTime = ev.startTime || `${ev.date}T12:00:00Z`;
+                const weather = await api.getWeather(lat, lon, eventTime);
+                if (weather.status === 'ok' && weather.temperature_c !== undefined && weather.temperature_f !== undefined && weather.weathercode !== undefined) {
+                  let condition = 'Clear';
+                  const code = weather.weathercode;
+                  if (code === 0) condition = 'Sunny';
+                  else if (code >= 1 && code <= 3) condition = 'Cloudy';
+                  else if (code === 45 || code === 48) condition = 'Foggy';
+                  else if ((code >= 51 && code <= 57) || (code >= 61 && code <= 67) || (code >= 80 && code <= 82)) condition = 'Rainy';
+                  else if ((code >= 71 && code <= 77) || (code >= 85 && code <= 86)) condition = 'Snowy';
+                  else if (code >= 95 && code <= 99) condition = 'Stormy';
+
+                  let resolvedName = ev.location?.name;
+                  if (!resolvedName || resolvedName === 'Local Spot') {
+                    const titleLower = ev.title.toLowerCase();
+                    if (titleLower.includes('coffee') || titleLower.includes('cafe') || titleLower.includes('tea')) {
+                      resolvedName = 'Nearby Cafe';
+                    } else if (titleLower.includes('walk') || titleLower.includes('run') || titleLower.includes('hike') || titleLower.includes('jog')) {
+                      resolvedName = 'Scenic Park / Trail';
+                    } else if (titleLower.includes('gym') || titleLower.includes('workout') || titleLower.includes('exercise')) {
+                      resolvedName = 'Fitness Center';
+                    } else if (titleLower.includes('swim')) {
+                      resolvedName = 'Aquatic Center';
+                    } else if (titleLower.includes('lunch') || titleLower.includes('dinner') || titleLower.includes('bistro') || titleLower.includes('restaurant')) {
+                      resolvedName = 'Nearby Bistro';
+                    } else if (titleLower.includes('work') || titleLower.includes('coding') || titleLower.includes('meeting') || titleLower.includes('call')) {
+                      resolvedName = 'Office Workspace';
+                    } else {
+                      resolvedName = 'Local Spot';
+                    }
+
+                    try {
+                      const geoAddress = await Location.reverseGeocodeAsync({ latitude: lat, longitude: lon });
+                      if (geoAddress && geoAddress.length > 0) {
+                        const addr = geoAddress[0];
+                        if (addr.name && isNaN(Number(addr.name)) && addr.name !== addr.streetNumber) {
+                          resolvedName = addr.name;
+                        } else if (addr.street) {
+                          resolvedName = addr.street;
+                        } else if (addr.city) {
+                          resolvedName = addr.city;
+                        }
+                      }
+                    } catch (geoErr) {
+                      console.warn('Reverse geocoding failed for event location:', geoErr);
+                    }
+                  }
+
+                  return {
+                    ...ev,
+                    location: {
+                      name: resolvedName,
+                      latitude: lat,
+                      longitude: lon,
+                    },
+                    weather: {
+                      temperature_c: weather.temperature_c,
+                      temperature_f: weather.temperature_f,
+                      condition,
+                      windSpeed: weather.wind_speed || 5.0,
+                      humidity: weather.humidity || 50.0,
+                    }
+                  };
+                }
+              } catch (weaErr) {
+                console.warn('Weather fetch failed for event:', ev.title, weaErr);
+              }
+            }
+            return ev;
+          })
+        );
+      }
+    } catch (err) {
+      console.warn('Failed to enrich activities with weather context:', err);
+    }
+
     setScheduleItems((prev) => {
       // Remove any items in the existing list that have the same date, title, and startTime as the new events, to prevent duplicates
       const cleanedPrev = prev.filter(
-        (item) => !eventsWithAudio.some(
-          (n) => n.date === item.date && n.title.toLowerCase() === item.title.toLowerCase() && n.startTime === item.startTime
+        (item) => !enrichedEvents.some(
+          (n) => n.date === item.date && areTitlesSimilar(n.title, item.title) && (n.startTime === item.startTime || areTimesClose(n.startTime, item.startTime))
         )
       );
-      const updated = [...eventsWithAudio, ...cleanedPrev];
+      const updated = [...enrichedEvents, ...cleanedPrev];
 
-      // Save local backup to SecureStore
-      SecureStore.setItemAsync('local_activities_backup', JSON.stringify(updated)).catch((err) => {
-        console.error('Failed to save local activities backup:', err);
-      });
+      // Save local backup to SecureStore (chunked)
+      if (userBackupKey) {
+        saveSecureStoreLarge(userBackupKey, JSON.stringify(updated));
+      }
 
       return updated;
     });
