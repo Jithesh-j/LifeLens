@@ -20,6 +20,7 @@ import { ThemedText } from '@/components/themed-text';
 import { IconSymbol } from '@/components/ui/icon-symbol';
 import { api } from '@/services/api';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import * as Location from 'expo-location';
 
 const SCREEN_WIDTH = Dimensions.get('window').width;
 
@@ -359,6 +360,51 @@ export default function HomeScreen() {
   const [smartNotifs, setSmartNotifs] = useState(false);
   const [pendingLocationSugg, setPendingLocationSugg] = useState<any | null>(null);
 
+  // Weather states
+  const [weatherText, setWeatherText] = useState<string | null>(null);
+  const [weatherLoading, setWeatherLoading] = useState(false);
+
+  const fetchWeather = async () => {
+    setWeatherLoading(true);
+    try {
+      let lat = 37.7749; // Default San Francisco
+      let lon = -122.4194;
+
+      // Try to get dynamic device location if foreground permission is granted
+      const { status } = await Location.requestForegroundPermissionsAsync();
+      if (status === 'granted') {
+        const location = await Location.getCurrentPositionAsync({});
+        lat = location.coords.latitude;
+        lon = location.coords.longitude;
+      }
+
+      const response = await fetch(
+        `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current_weather=true`
+      );
+      if (response.ok) {
+        const data = await response.json();
+        const tempC = data.current_weather.temperature;
+        const tempF = Math.round((tempC * 9) / 5 + 32);
+        const code = data.current_weather.weathercode;
+
+        // Map weathercode to emoji
+        let emoji = '🌡️';
+        if (code === 0) emoji = '☀️';
+        else if (code >= 1 && code <= 3) emoji = '⛅';
+        else if (code === 45 || code === 48) emoji = '🌫️';
+        else if ((code >= 51 && code <= 57) || (code >= 61 && code <= 67) || (code >= 80 && code <= 82)) emoji = '🌧️';
+        else if ((code >= 71 && code <= 77) || (code >= 85 && code <= 86)) emoji = '❄️';
+        else if (code >= 95 && code <= 99) emoji = '⛈️';
+
+        setWeatherText(`${emoji} ${tempF}°F / ${Math.round(tempC)}°C`);
+      }
+    } catch (err) {
+      console.warn('Failed to fetch weather:', err);
+    } finally {
+      setWeatherLoading(false);
+    }
+  };
+
   // Edit suggested activity states
   const [showLocEditModal, setShowLocEditModal] = useState(false);
   const [locEditTitle, setLocEditTitle] = useState('');
@@ -392,10 +438,12 @@ export default function HomeScreen() {
   };
 
   useEffect(() => {
+    fetchWeather();
     if (user) {
       loadLocationSuggestion();
     }
     const unsubscribe = navigation.addListener('focus', () => {
+      fetchWeather();
       if (user) {
         loadLocationSuggestion();
       }
@@ -695,9 +743,18 @@ export default function HomeScreen() {
                 <ThemedText style={s.greetingText}>
                   {greeting.text}, {firstName} {greeting.emoji}
                 </ThemedText>
-                <ThemedText style={s.dateLabel}>
-                  {dateLabel}
-                </ThemedText>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 4 }}>
+                  <ThemedText style={s.dateLabel}>
+                    {dateLabel}
+                  </ThemedText>
+                  {weatherLoading ? (
+                    <ActivityIndicator size="small" color={LIGHT_PURPLE} style={{ opacity: 0.8 }} />
+                  ) : weatherText ? (
+                    <ThemedText style={s.weatherLabel}>
+                      •  {weatherText}
+                    </ThemedText>
+                  ) : null}
+                </View>
               </View>
               <TouchableOpacity style={s.notifBadge}>
                 <IconSymbol size={22} name="bell.fill" color={LIGHT_PURPLE} />
@@ -1150,7 +1207,8 @@ const s = StyleSheet.create({
   greetingSection: { marginBottom: 4 },
   greetingTopRow: { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between' },
   greetingText: { color: '#fff', fontSize: 24, fontWeight: '800', letterSpacing: -0.3, lineHeight: 32, paddingTop: 4 },
-  dateLabel: { color: '#D2D2E6', fontSize: 14, fontWeight: '600', marginTop: 4 },
+  dateLabel: { color: '#D2D2E6', fontSize: 14, fontWeight: '600' },
+  weatherLabel: { color: LIGHT_PURPLE, fontSize: 14, fontWeight: '600' },
   notifBadge: { width: 42, height: 42, borderRadius: 21, backgroundColor: 'rgba(143, 102, 255, 0.12)', justifyContent: 'center', alignItems: 'center', marginTop: 2 },
 
   // AI Suggestion Card
