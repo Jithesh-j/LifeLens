@@ -42,14 +42,14 @@ export default function TabLayout() {
         },
       }}>
       <Tabs.Screen
-        name="home"
+        name="index"
         options={{
           title: 'Home',
           tabBarIcon: ({ color }) => <IconSymbol size={24} name="house.fill" color={color} />,
         }}
       />
       <Tabs.Screen
-        name="index"
+        name="calendar"
         options={{
           title: 'Calendar',
           tabBarIcon: ({ color }) => <IconSymbol size={24} name="calendar" color={color} />,
@@ -79,7 +79,7 @@ export default function TabLayout() {
             }}>
               <IconSymbol 
                 size={30} 
-                name={calendarExpanded ? "xmark" : "plus"} 
+                name="plus" 
                 color="#fff" 
               />
             </View>
@@ -88,11 +88,7 @@ export default function TabLayout() {
         listeners={{
           tabPress: (e) => {
             e.preventDefault();
-            if (calendarExpanded) {
-              setCalendarExpanded(false);
-            } else {
-              router.push({ pathname: '/modal', params: { date: selectedDate } });
-            }
+            router.push({ pathname: '/modal', params: { date: selectedDate } });
           },
         }}
       />

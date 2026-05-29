@@ -113,7 +113,65 @@ async def categorize_activity(content: str) -> ActivityAnalysis:
         return result
     except Exception as e:
         logger.error(f"Activity categorization failed: {e}")
-        return ActivityAnalysis(category="other", mood=None, tags=[])
+        # Intelligent offline heuristic fallback to extract metadata
+        lower = content.lower()
+        
+        # 1. Category extraction
+        category = "other"
+        if any(w in lower for w in ["walk", "run", "swim", "gym", "cricket", "play", "sport", "workout", "hike", "hiking", "exercise", "training", "football", "tennis", "soccer", "basketball"]):
+            category = "exercise"
+        elif any(w in lower for w in ["coding", "work", "office", "meeting", "developer", "programming", "client", "call", "project", "task", "job", "write", "writing"]):
+            category = "work"
+        elif any(w in lower for w in ["meet", "friends", "coffee", "lunch", "dinner", "cafe", "party", "call", "talked", "social", "chat"]):
+            category = "social"
+        elif any(w in lower for w in ["sleep", "nap", "rest", "movie", "read", "relax", "bed", "tv", "show"]):
+            category = "rest"
+        elif any(w in lower for w in ["shop", "grocery", "buy", "store", "clean", "laundry", "bills", "errands", "bank"]):
+            category = "errands"
+        elif any(w in lower for w in ["learn", "study", "class", "course", "read", "book", "lecture", "homework"]):
+            category = "learning"
+
+        # 2. Mood extraction
+        mood = "neutral"
+        if any(w in lower for w in ["great", "good", "happy", "fun", "excited", "amazing", "wonderful", "love", "awesome"]):
+            mood = "happy"
+        elif any(w in lower for w in ["cricket", "play", "sport", "swim", "run", "workout", "gym", "energetic", "fast", "active"]):
+            mood = "energetic"
+        elif any(w in lower for w in ["tired", "exhausted", "sleepy", "fatigued", "drained"]):
+            mood = "tired"
+        elif any(w in lower for w in ["stressed", "anxious", "worry", "busy", "hard", "difficult", "overwhelmed"]):
+            mood = "stressed"
+        elif any(w in lower for w in ["calm", "relax", "peace", "quiet", "chilled", "cozy"]):
+            mood = "calm"
+        elif any(w in lower for w in ["sad", "bad", "depressed", "lonely", "bored"]):
+            mood = "sad"
+
+        # 3. Tag extraction
+        tags = []
+        if category == "exercise":
+            tags = ["Fitness", "Active", "Health"]
+            if "cricket" in lower:
+                tags.append("Cricket")
+            if "swim" in lower:
+                tags.append("Swimming")
+            if "gym" in lower or "workout" in lower:
+                tags.append("Workout")
+        elif category == "work":
+            tags = ["Productivity", "Work", "Focus"]
+            if "coding" in lower or "programming" in lower:
+                tags.append("Coding")
+            if "meeting" in lower:
+                tags.append("Meeting")
+        elif category == "social":
+            tags = ["Social", "Connection", "Friends"]
+        elif category == "rest":
+            tags = ["Rest", "Recovery", "Relax"]
+        elif category == "learning":
+            tags = ["Learning", "Education", "Knowledge"]
+        else:
+            tags = ["Personal", "Daily-Log", "Journal"]
+            
+        return ActivityAnalysis(category=category, mood=mood, tags=tags)
 
 
 async def generate_daily_insight(activities_text: str, date_str: str) -> DailyInsight:

@@ -136,8 +136,18 @@ export function parseNotesToEvents(text: string, dateStr = getTodayDateStr()): S
   const events: ScheduleItem[] = [];
   if (!text.trim()) return events;
 
-  // Split text by sentence terminators or logical dividers
-  const sentences = text.split(/[.;]|\band\b/i).map(s => s.trim()).filter(s => s.length > 0);
+  // Pre-process abbreviations to prevent incorrect sentence splitting
+  const normalizedText = text
+    .replace(/\b(a|p)\.m\./gi, '$1m')
+    .replace(/\b(a|p)\.m\b/gi, '$1m')
+    .replace(/\bi\.e\./gi, 'ie')
+    .replace(/\be\.g\./gi, 'eg');
+
+  // Split text by sentence-terminating periods (dot followed by space or end of string), semicolons, or logical divider 'and'
+  const sentences = normalizedText
+    .split(/\.(?:\s|$)|[;]|\band\b/i)
+    .map(s => s ? s.trim() : '')
+    .filter(s => s.length > 0);
 
   sentences.forEach((sentence) => {
     const lower = sentence.toLowerCase();

@@ -21,6 +21,31 @@ import { IconSymbol } from '@/components/ui/icon-symbol';
 import { api, ActivityResponse } from '@/services/api';
 import { useSchedule, parseNotesToEvents, ScheduleItem, getTodayDateStr } from '@/context/schedule';
 
+const detectTaskFromText = (text: string): string => {
+  if (!text) return 'None detected';
+  const lower = text.toLowerCase();
+  
+  // Look for common task prefixes
+  const taskKeywords = [
+    /\b(?:need\s+to|have\s+to|todo|to-do|should|must|remind\s+me\s+to|remember\s+to|finish|complete|do|buy|call)\s+([^.;]+)/i
+  ];
+  
+  for (const regex of taskKeywords) {
+    const match = regex.exec(text);
+    if (match && match[1]) {
+      let task = match[1].trim();
+      // Capitalize first letter
+      task = task.charAt(0).toUpperCase() + task.slice(1);
+      if (task.length > 40) {
+        task = task.substring(0, 37) + '...';
+      }
+      return task;
+    }
+  }
+  
+  return 'None detected';
+};
+
 export default function AddNoteModal() {
   const router = useRouter();
   const params = useLocalSearchParams();
@@ -534,7 +559,7 @@ export default function AddNoteModal() {
       setEditedCategory(response.category || 'other');
       setEditedMood(response.mood || 'neutral');
       setEditedTags(response.tags || 'Journal');
-      setDetectedTask('None detected');
+      setDetectedTask(detectTaskFromText(content));
       setShowReview(true);
     } catch (e: any) {
       console.error(e);
@@ -544,7 +569,7 @@ export default function AddNoteModal() {
       setEditedCategory('exercise');
       setEditedMood('focused');
       setEditedTags('Health, Outdoor, Focus, Work');
-      setDetectedTask('Finish backend API before noon');
+      setDetectedTask(detectTaskFromText(content));
       setShowReview(true);
     } finally {
       setLoading(false);
@@ -569,7 +594,7 @@ export default function AddNoteModal() {
       setEditedCategory(response.category || 'other');
       setEditedMood(response.mood || 'neutral');
       setEditedTags(response.tags || 'Journal');
-      setDetectedTask('None detected');
+      setDetectedTask(detectTaskFromText(voiceTranscript));
       setShowReview(true);
     } catch (e: any) {
       console.error(e);
@@ -579,7 +604,7 @@ export default function AddNoteModal() {
       setEditedCategory('health');
       setEditedMood('energetic');
       setEditedTags('Health, Personal, Swimming');
-      setDetectedTask('None detected');
+      setDetectedTask(detectTaskFromText(voiceTranscript));
       setShowReview(true);
     } finally {
       setLoading(false);
