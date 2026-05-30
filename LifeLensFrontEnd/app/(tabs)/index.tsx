@@ -11,6 +11,7 @@ import {
   TextInput,
   ActivityIndicator,
   Platform,
+  AppState,
 } from 'react-native';
 import { useRouter, useNavigation } from 'expo-router';
 import * as SecureStore from 'expo-secure-store';
@@ -373,6 +374,15 @@ export default function HomeScreen() {
   const [smartNotifs, setSmartNotifs] = useState(false);
   const [pendingLocationSugg, setPendingLocationSugg] = useState<any | null>(null);
 
+  // Lightweight Quick Add Event Modal states
+  const [showQuickAddSheet, setShowQuickAddSheet] = useState(false);
+  const [quickAddActivityName, setQuickAddActivityName] = useState('');
+  const [quickAddDate, setQuickAddDate] = useState('');
+  const [quickAddTime, setQuickAddTime] = useState('');
+  const [quickAddNotes, setQuickAddNotes] = useState('');
+  const [weatherOnTimeline, setWeatherOnTimeline] = useState(false);
+  const [isSavingQuickAdd, setIsSavingQuickAdd] = useState(false);
+
   // Weather states
   const [weatherText, setWeatherText] = useState<string | null>(null);
   const [weatherLoading, setWeatherLoading] = useState(false);
@@ -459,6 +469,7 @@ export default function HomeScreen() {
       const locEnabled = settings.location_enabled;
       const smartEnabled = settings.smart_activity_detection;
       const notifsEnabled = settings.smart_notifications;
+      const weatherTimelineEnabled = settings.weather_on_timeline || false;
 
       const simActiveKey = `${user.id}_simulated_suggestion_active`;
       const simDataKey = `${user.id}_simulated_suggestion_data`;
@@ -467,6 +478,7 @@ export default function HomeScreen() {
 
       setLocEnabled(locEnabled);
       setSmartNotifs(locEnabled && smartEnabled && notifsEnabled);
+      setWeatherOnTimeline(weatherTimelineEnabled);
 
       if (locEnabled && smartEnabled && notifsEnabled && simActive === 'true' && simData) {
         setPendingLocationSugg(JSON.parse(simData));
@@ -537,10 +549,69 @@ export default function HomeScreen() {
       fetchWeather();
       if (user) {
         loadLocationSuggestion();
+        checkPendingNotificationActions();
       }
     });
     return unsubscribe;
   }, [navigation, user]);
+
+  // AppState listener to capture foreground shifts from push notifications
+  useEffect(() => {
+    if (!user) return;
+    
+    // Check once immediately on user load
+    checkPendingNotificationActions();
+
+    const subscription = AppState.addEventListener('change', (nextState) => {
+      if (nextState === 'active') {
+        console.log('📱 [AppState] App became active. Checking for pending push notification taps...');
+        checkPendingNotificationActions();
+      }
+    });
+
+    return () => {
+      subscription.remove();
+    };
+  }, [user]);
+
+  const checkPendingNotificationActions = async () => {
+    if (!user) return;
+    try {
+      const key = `${user.id}_pending_notification_action`;
+      const actionDataStr = await SecureStore.getItemAsync(key);
+      if (actionDataStr) {
+        await SecureStore.deleteItemAsync(key);
+        const { action, data, timestamp } = JSON.parse(actionDataStr);
+        
+        // Cooldown check to ignore ancient actions (older than 1 hour)
+        if (Date.now() - timestamp > 60 * 60 * 1000) {
+          console.log('🔔 [Notifications] Ignoring stale tapped notification action:', action);
+          return;
+        }
+
+        console.log('🔔 [Notifications] Pending tapped action detected:', action, data);
+        
+        // Establish the suggestion state
+        setPendingLocationSugg(data);
+
+        if (action === 'add-timeline') {
+          // Add to timeline instantly with a small delay for UI processing
+          setTimeout(async () => {
+            await handleAddLocationToTimelineDirect(data);
+          }, 300);
+        } else if (action === 'add-event') {
+          // Open the Event modal overlay prefilled
+          setQuickAddActivityName(data.inferredActivity);
+          setQuickAddDate(data.date);
+          setQuickAddTime(data.timeOfDay);
+          setQuickAddNotes('');
+          setShowQuickAddSheet(true);
+        }
+      }
+    } catch (err) {
+      console.warn('Failed to process pending notification actions:', err);
+    }
+  };
 
   const clearLocationSuggestion = async () => {
     setPendingLocationSugg(null);
@@ -550,15 +621,79 @@ export default function HomeScreen() {
     }
   };
 
-  const handleAddLocationToTimeline = async () => {
-    if (!pendingLocationSugg) return;
+  const handleAddLocationToTimelineDirect = async (sugg: any) => {
     try {
-      const sentence = `Spent ${pendingLocationSugg.durationMinutes} minutes at ${pendingLocationSugg.placeName} (${pendingLocationSugg.inferredActivity})`;
+      const sentence = `Spent ${sugg.durationMinutes} minutes at ${sugg.placeName} (${sugg.inferredActivity})`;
       
+      // Parse 12h time to 24h format for ISO string construction
+      const timePart = sugg.timeOfDay.split(' ')[0] || '';
+      const ampm = sugg.timeOfDay.split(' ')[1] || 'AM';
+      let h = parseInt(timePart.split(':')[0]) || 12;
+      const m = parseInt(timePart.split(':')[1]) || 0;
+      if (ampm.toUpperCase() === 'PM' && h < 12) h += 12;
+      if (ampm.toUpperCase() === 'AM' && h === 12) h = 0;
+      const startTime24h = `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}:00`;
+      
+      const startISO = `${sugg.date}T${startTime24h}`;
+
+      let weatherData = undefined;
+      if (weatherOnTimeline) {
+        try {
+          const lat = sugg.latitude || 34.05;
+          const lon = sugg.longitude || -118.24;
+          const weather = await api.getWeather(lat, lon, startISO);
+          if (weather.status === 'ok' && weather.temperature_c !== undefined && weather.temperature_f !== undefined && weather.weathercode !== undefined) {
+            const code = weather.weathercode;
+            const isNight = h < 6 || h >= 18;
+            let condition = 'Clear';
+            if (code === 0) {
+              condition = isNight ? 'Clear' : 'Sunny';
+            } else if (code >= 1 && code <= 3) {
+              condition = 'Cloudy';
+            } else if (code === 45 || code === 48) {
+              condition = 'Foggy';
+            } else if ((code >= 51 && code <= 57) || (code >= 61 && code <= 67) || (code >= 80 && code <= 82)) {
+              condition = 'Rainy';
+            } else if ((code >= 71 && code <= 77) || (code >= 85 && code <= 86)) {
+              condition = 'Snowy';
+            } else if (code >= 95 && code <= 99) {
+              condition = 'Stormy';
+            }
+            weatherData = {
+              temperature_c: weather.temperature_c,
+              temperature_f: weather.temperature_f,
+              condition,
+              windSpeed: weather.wind_speed || 5.0,
+              humidity: weather.humidity || 50.0,
+            };
+          }
+        } catch (weaErr) {
+          console.warn('Weather snapshot enrichment failed in handleAddLocationToTimelineDirect:', weaErr);
+        }
+      }
+
+      const newLocalItem: any = {
+        id: Math.random().toString(),
+        title: sugg.inferredActivity,
+        timeRange: sugg.timeOfDay,
+        category: sugg.category,
+        icon: sugg.icon,
+        color: sugg.color,
+        date: sugg.date,
+        startTime: startISO,
+        isAiExtracted: false,
+        location: {
+          name: sugg.placeName,
+          latitude: sugg.latitude || 34.05,
+          longitude: sugg.longitude || -118.24,
+        },
+        weather: weatherData,
+      };
+
       // Save to backend database
-      await api.createActivity(sentence, `${pendingLocationSugg.date}T12:00:00`);
+      await api.createActivity(sentence, `${sugg.date}T12:00:00`);
       // Extract and save to local schedule
-      addNoteAndExtract(sentence, pendingLocationSugg.date);
+      await addNoteAndExtract(sentence, sugg.date, [newLocalItem]);
 
       showToast('Added to Timeline');
       await clearLocationSuggestion();
@@ -568,22 +703,81 @@ export default function HomeScreen() {
     }
   };
 
+  const handleAddLocationToTimeline = async () => {
+    if (!pendingLocationSugg) return;
+    await handleAddLocationToTimelineDirect(pendingLocationSugg);
+  };
+
   const handleAddLocationToEvents = () => {
     if (!pendingLocationSugg) return;
-    
-    // Prefill the Quick Event Modal
-    setEventTitle(`${pendingLocationSugg.inferredActivity} (${pendingLocationSugg.placeName})`);
-    
-    // Set time details
-    setSelectedHour('10');
-    setSelectedMin('30');
-    setSelectedAmPm('AM');
-    setSelectedDuration(pendingLocationSugg.durationMinutes);
-    setTargetCalendar('local');
-    setIsModalOpen(true);
-    
-    // Clear simulated suggestions once modal pops up
-    clearLocationSuggestion();
+    setQuickAddActivityName(pendingLocationSugg.inferredActivity);
+    setQuickAddDate(pendingLocationSugg.date);
+    setQuickAddTime(pendingLocationSugg.timeOfDay);
+    setQuickAddNotes('');
+    setShowQuickAddSheet(true);
+  };
+
+  const handleSaveQuickAddEvent = async () => {
+    if (!pendingLocationSugg) return;
+    setIsSavingQuickAdd(true);
+    try {
+      const sentence = `${quickAddActivityName} (${pendingLocationSugg.placeName}) at ${quickAddTime} on ${quickAddDate}. Notes: ${quickAddNotes || 'None'}`;
+      
+      // Parse 12h time to 24h format for ISO string construction
+      const timePart = quickAddTime.split(' ')[0] || '';
+      const ampm = quickAddTime.split(' ')[1] || 'AM';
+      let h = parseInt(timePart.split(':')[0]) || 12;
+      const m = parseInt(timePart.split(':')[1]) || 0;
+      if (ampm.toUpperCase() === 'PM' && h < 12) h += 12;
+      if (ampm.toUpperCase() === 'AM' && h === 12) h = 0;
+      const startTime24h = `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}:00`;
+      
+      const startISO = `${quickAddDate}T${startTime24h}`;
+      
+      // Calculate end time based on duration
+      const startDate = new Date(startISO);
+      startDate.setMinutes(startDate.getMinutes() + pendingLocationSugg.durationMinutes);
+      const yyyy = startDate.getFullYear();
+      const mm = String(startDate.getMonth() + 1).padStart(2, '0');
+      const dd = String(startDate.getDate()).padStart(2, '0');
+      const hh = String(startDate.getHours()).padStart(2, '0');
+      const min = String(startDate.getMinutes()).padStart(2, '0');
+      const endISO = `${yyyy}-${mm}-${dd}T${hh}:${min}:00`;
+
+      const ampmEnd = startDate.getHours() >= 12 ? 'PM' : 'AM';
+      const displayHourEnd = startDate.getHours() % 12 === 0 ? 12 : startDate.getHours() % 12;
+      const displayMinEnd = String(startDate.getMinutes()).padStart(2, '0');
+      const timeRangeStr = `${quickAddTime} - ${displayHourEnd}:${displayMinEnd} ${ampmEnd}`;
+
+      const newEvent: any = {
+        id: Math.random().toString(),
+        title: `${quickAddActivityName} (${pendingLocationSugg.placeName})`,
+        timeRange: timeRangeStr,
+        duration: `${pendingLocationSugg.durationMinutes} min`,
+        category: pendingLocationSugg.category,
+        icon: pendingLocationSugg.icon,
+        color: pendingLocationSugg.color,
+        date: quickAddDate,
+        startTime: startISO,
+        endTime: endISO,
+        notes: quickAddNotes || undefined,
+        isAiExtracted: false,
+      };
+
+      // Save to database
+      await api.createActivity(sentence, `${quickAddDate}T12:00:00`);
+      // Save event structure to calendar schedule
+      await addNoteAndExtract(sentence, quickAddDate, [newEvent]);
+
+      showToast('Event added successfully');
+      setShowQuickAddSheet(false);
+      await clearLocationSuggestion();
+    } catch (err) {
+      console.error(err);
+      showToast('Failed to schedule calendar event');
+    } finally {
+      setIsSavingQuickAdd(false);
+    }
   };
 
   const handleOpenLocEdit = () => {
@@ -833,23 +1027,23 @@ export default function HomeScreen() {
             <View style={s.locSuggestionCard}>
               <View style={s.locNotifHeader}>
                 <IconSymbol size={20} name="location.fill" color={PURPLE} />
-                <ThemedText style={s.locNotifTitle}>📍 Location Inferred Activity</ThemedText>
+                <ThemedText style={s.locNotifTitle}>📍 {pendingLocationSugg.title || 'Activity Detected'}</ThemedText>
                 <TouchableOpacity onPress={clearLocationSuggestion} style={s.locNotifClose}>
                   <IconSymbol size={18} name="xmark" color="#FFF" style={{ opacity: 0.5 }} />
                 </TouchableOpacity>
               </View>
 
               <ThemedText style={s.locNotifMsg}>
-                We noticed you spent <ThemedText style={{ fontWeight: 'bold', color: LIGHT_PURPLE }}>1h 20m</ThemedText> at <ThemedText style={{ fontWeight: 'bold' }}>{pendingLocationSugg.placeName}</ThemedText>. Would you like to add this as an activity?
+                {pendingLocationSugg.message || `We noticed you spent ${pendingLocationSugg.durationMinutes} minutes at ${pendingLocationSugg.placeName}. Add this activity?`}
               </ThemedText>
 
               <View style={s.locNotifMetaRow}>
                 <ThemedText style={s.locNotifMetaLabel}>
-                  Suggested: <ThemedText style={{ fontWeight: '700', color: GREEN }}>{pendingLocationSugg.inferredActivity}</ThemedText>
+                  Suggested Activity: <ThemedText style={{ fontWeight: '700', color: GREEN }}>{pendingLocationSugg.inferredActivity}</ThemedText>
                 </ThemedText>
               </View>
 
-              {/* Actions Grid */}
+              {/* Actions Grid (Add to Timeline, Add to Event) */}
               <View style={s.locActionsGrid}>
                 <TouchableOpacity style={s.locActionBtn} onPress={handleAddLocationToTimeline}>
                   <IconSymbol size={14} name="paperplane.fill" color={BLUE} />
@@ -858,7 +1052,7 @@ export default function HomeScreen() {
 
                 <TouchableOpacity style={s.locActionBtn} onPress={handleAddLocationToEvents}>
                   <IconSymbol size={14} name="calendar" color={GREEN} />
-                  <ThemedText style={s.locActionBtnText}>Add Calendar</ThemedText>
+                  <ThemedText style={s.locActionBtnText}>Add Event</ThemedText>
                 </TouchableOpacity>
               </View>
 
@@ -868,7 +1062,7 @@ export default function HomeScreen() {
                 </TouchableOpacity>
 
                 <TouchableOpacity style={s.locActionBtnSmall} onPress={clearLocationSuggestion}>
-                  <ThemedText style={[s.locActionBtnTextSmall, { color: RED }]}>Ignore</ThemedText>
+                  <ThemedText style={[s.locActionBtnTextSmall, { color: RED }]}>Dismiss</ThemedText>
                 </TouchableOpacity>
               </View>
             </View>
@@ -941,7 +1135,7 @@ export default function HomeScreen() {
         <FadeSlide index={2}>
           <View style={s.sectionHeaderRow}>
             <ThemedText style={s.sectionTitle}>Today's Schedule</ThemedText>
-            <TouchableOpacity onPress={() => router.push('/(tabs)')}>
+            <TouchableOpacity onPress={() => router.push('/(tabs)/calendar')}>
               <ThemedText style={s.sectionLink}>View calendar</ThemedText>
             </TouchableOpacity>
           </View>
@@ -1228,6 +1422,70 @@ export default function HomeScreen() {
 
               <TouchableOpacity style={s.locSaveEditBtn} onPress={handleSaveLocEdit}>
                 <ThemedText style={s.locSaveEditBtnText}>Apply Inferred Settings</ThemedText>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      )}
+
+      {/* ── Location intelligence lightweight quick add event modal overlay ────── */}
+      {showQuickAddSheet && (
+        <View style={s.locEditBg}>
+          <View style={s.locEditCard}>
+            <View style={s.locEditHeader}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                <IconSymbol size={20} name="calendar" color={PURPLE} />
+                <ThemedText style={s.locEditTitle}>Quick Add Event</ThemedText>
+              </View>
+              <TouchableOpacity onPress={() => setShowQuickAddSheet(false)}>
+                <IconSymbol size={24} name="xmark" color="#FFF" />
+              </TouchableOpacity>
+            </View>
+
+            <View style={s.locEditBody}>
+              <ThemedText style={s.locInputLabel}>Activity Name</ThemedText>
+              <TextInput
+                style={s.locTextInput}
+                value={quickAddActivityName}
+                onChangeText={setQuickAddActivityName}
+                placeholder="e.g. Walking"
+                placeholderTextColor="rgba(255,255,255,0.4)"
+              />
+
+              <ThemedText style={s.locInputLabel}>Date</ThemedText>
+              <TextInput
+                style={s.locTextInput}
+                value={quickAddDate}
+                onChangeText={setQuickAddDate}
+                placeholder="YYYY-MM-DD"
+                placeholderTextColor="rgba(255,255,255,0.4)"
+              />
+
+              <ThemedText style={s.locInputLabel}>Time</ThemedText>
+              <TextInput
+                style={s.locTextInput}
+                value={quickAddTime}
+                onChangeText={setQuickAddTime}
+                placeholder="e.g. 10:30 AM"
+                placeholderTextColor="rgba(255,255,255,0.4)"
+              />
+
+              <ThemedText style={s.locInputLabel}>Notes (Optional)</ThemedText>
+              <TextInput
+                style={[s.locTextInput, { height: 60, textAlignVertical: 'top' }]}
+                value={quickAddNotes}
+                onChangeText={setQuickAddNotes}
+                multiline={true}
+                placeholder="Add notes..."
+                placeholderTextColor="rgba(255,255,255,0.4)"
+              />
+
+              <TouchableOpacity style={s.locSaveEditBtn} onPress={handleSaveQuickAddEvent} disabled={isSavingQuickAdd}>
+                {isSavingQuickAdd ? (
+                  <ActivityIndicator size="small" color="#0A0C1B" />
+                ) : (
+                  <ThemedText style={s.locSaveEditBtnText}>Save Event Directly</ThemedText>
+                )}
               </TouchableOpacity>
             </View>
           </View>

@@ -51,6 +51,11 @@ class UserSettings(Base):
         default="instant",
         nullable=False,
     )
+    device_token: Mapped[str | None] = mapped_column(
+        String(255),
+        default=None,
+        nullable=True,
+    )
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         default=lambda: datetime.now(timezone.utc),

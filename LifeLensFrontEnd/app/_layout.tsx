@@ -11,6 +11,8 @@ import * as SplashScreen from 'expo-splash-screen';
 import 'react-native-reanimated';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { View, StyleSheet } from 'react-native';
+import * as Notifications from 'expo-notifications';
+import * as SecureStore from 'expo-secure-store';
 
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { AuthProvider } from '@/context/auth';
@@ -29,6 +31,50 @@ export default function RootLayout() {
   const colorScheme = useColorScheme();
   const [nativeSplashHidden, setNativeSplashHidden] = useState(false);
   const [splashAnimDone, setSplashAnimDone] = useState(false);
+
+  // Listen for native mobile push notifications actions
+  useEffect(() => {
+    // Pre-register interactive categories on iOS
+    import('@/services/notifications').then(({ registerNotificationCategories }) => {
+      registerNotificationCategories().catch(err => console.warn('Failed to pre-register categories:', err));
+    });
+
+    const subscription = Notifications.addNotificationResponseReceivedListener(async (response) => {
+      const actionIdentifier = response.actionIdentifier;
+      const notificationData = response.notification.request.content.data;
+      
+      console.log('🔔 [RootLayout] Notification response received:', actionIdentifier, notificationData);
+      
+      try {
+        const storedUser = await SecureStore.getItemAsync('lifelens_user');
+        if (storedUser) {
+          const user = JSON.parse(storedUser);
+          const pendingActionKey = `${user.id}_pending_notification_action`;
+          
+          if (actionIdentifier === 'add-timeline') {
+            await SecureStore.setItemAsync(pendingActionKey, JSON.stringify({
+              action: 'add-timeline',
+              data: notificationData,
+              timestamp: Date.now(),
+            }));
+            console.log('🔔 [RootLayout] Saved pending add-timeline action for user:', user.id);
+          } else if (actionIdentifier === 'add-event' || actionIdentifier === Notifications.DEFAULT_ACTION_IDENTIFIER) {
+            // Clicking the 'Add to Event' button or the general notification body will trigger the Quick Add sheet prefilled
+            await SecureStore.setItemAsync(pendingActionKey, JSON.stringify({
+              action: 'add-event',
+              data: notificationData,
+              timestamp: Date.now(),
+            }));
+            console.log('🔔 [RootLayout] Saved pending add-event action for user:', user.id);
+          }
+        }
+      } catch (err) {
+        console.warn('Failed to handle notification tap in RootLayout:', err);
+      }
+    });
+
+    return () => subscription.remove();
+  }, []);
 
   // Hide the native splash as soon as the component mounts (JS is loaded)
   // Then our AnimatedSplash takes over visually

@@ -66,6 +66,8 @@ async def update_user_settings(
         settings.weather_on_timeline = payload.weather_on_timeline
     if payload.notification_frequency is not None:
         settings.notification_frequency = payload.notification_frequency
+    if payload.device_token is not None:
+        settings.device_token = payload.device_token
 
     await db.flush()
     return settings

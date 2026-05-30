@@ -17,6 +17,7 @@ class UserSettingsBase(BaseModel):
     smart_notifications: bool = False
     weather_on_timeline: bool = False
     notification_frequency: str = "instant"
+    device_token: str | None = None
 
 
 class UserSettingsUpdate(BaseModel):
@@ -27,6 +28,7 @@ class UserSettingsUpdate(BaseModel):
     smart_notifications: bool | None = None
     weather_on_timeline: bool | None = None
     notification_frequency: str | None = None
+    device_token: str | None = None
 
 
 class UserSettingsResponse(UserSettingsBase):

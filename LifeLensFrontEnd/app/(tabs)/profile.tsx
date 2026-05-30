@@ -20,6 +20,7 @@ import { useThemeColor } from '@/hooks/use-theme-color';
 import { IconSymbol } from '@/components/ui/icon-symbol';
 import { api } from '@/services/api';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { scheduleActivityNotification, registerForPushNotificationsAsync } from '@/services/notifications';
 
 const SCREEN_HEIGHT = Dimensions.get('window').height;
 
@@ -33,6 +34,81 @@ const GREEN = '#34D399';
 const BLUE = '#3B82F6';
 const AMBER = '#F59E0B';
 const RED = '#EF4444';
+
+export const SIMULATION_PRESETS = [
+  {
+    id: 'walk',
+    label: 'Walking (Green Lake Park) — 45m',
+    placeName: 'Green Lake Park',
+    durationMinutes: 45,
+    inferredActivity: 'Walking',
+    category: 'health',
+    icon: 'walk',
+    color: 'green',
+    title: 'Activity Detected',
+    message: 'We noticed you spent 45 minutes at Green Lake Park. Add a Walking activity to your timeline?',
+  },
+  {
+    id: 'restaurant',
+    label: 'Restaurant Meal (The Grill) — 60m',
+    placeName: 'The Grill Restaurant',
+    durationMinutes: 60,
+    inferredActivity: 'Brunch/Dinner/Meal',
+    category: 'social',
+    icon: 'groups',
+    color: 'yellow',
+    title: 'Food Activity Detected',
+    message: 'You visited a restaurant for 1 hour. Would you like to log this meal?',
+  },
+  {
+    id: 'swim',
+    label: 'Swimming Session — 90m',
+    placeName: 'Seattle Swimming Center',
+    durationMinutes: 90,
+    inferredActivity: 'Swimming',
+    category: 'health',
+    icon: 'swim',
+    color: 'blue',
+    title: 'Swimming Session Detected',
+    message: 'Looks like you spent time at a swimming facility. Add this activity?',
+  },
+  {
+    id: 'gym',
+    label: 'Workout Session (Gold\'s Gym) — 60m',
+    placeName: 'Gold\'s Gym',
+    durationMinutes: 60,
+    inferredActivity: 'Workout',
+    category: 'health',
+    icon: 'gym',
+    color: 'red',
+    title: 'Workout Session Detected',
+    message: 'Looks like you finished a workout at Gold\'s Gym. Add this session?',
+  },
+  {
+    id: 'coworking',
+    label: 'Office Stay (WeWork) — 180m',
+    placeName: 'WeWork Coworking',
+    durationMinutes: 180,
+    inferredActivity: 'Focused Work',
+    category: 'work',
+    icon: 'laptop',
+    color: 'purple',
+    title: 'Productive Stay Inferred',
+    message: 'You spent 3 hours at WeWork Coworking. Add this productivity block?',
+  },
+  {
+    id: 'live',
+    label: '📡 Current GPS Location',
+    placeName: 'Current Location',
+    durationMinutes: 45,
+    inferredActivity: 'Workout',
+    category: 'health',
+    icon: 'gym',
+    color: 'green',
+    title: 'Activity Detected',
+    message: 'We noticed you spent time here. Add this activity?',
+  }
+];
 
 export default function ProfileScreen() {
   const { user, logout } = useAuth();
@@ -62,6 +138,18 @@ export default function ProfileScreen() {
   const [editDuration, setEditDuration] = useState('');
   const [editActivity, setEditActivity] = useState('');
 
+  // Preset Selection state
+  const [selectedPresetId, setSelectedPresetId] = useState<string>('walk');
+
+  // Lightweight Quick Add Event Modal states
+  const [showQuickAddSheet, setShowQuickAddSheet] = useState(false);
+  const [quickAddActivityName, setQuickAddActivityName] = useState('');
+  const [quickAddDate, setQuickAddDate] = useState('');
+  const [quickAddTime, setQuickAddTime] = useState('');
+  const [quickAddNotes, setQuickAddNotes] = useState('');
+  const [isSavingQuickAdd, setIsSavingQuickAdd] = useState(false);
+  const [dailySummaryEnabled, setDailySummaryEnabled] = useState(true);
+
   // Load Settings from Backend & Scoped SecureStore for Simulation
   useEffect(() => {
     if (!user) return;
@@ -74,6 +162,9 @@ export default function ProfileScreen() {
         setNotificationsEnabled(settings.smart_notifications);
         setWeatherOnTimeline(settings.weather_on_timeline || false);
         setFrequency(settings.notification_frequency as any);
+
+        const dailySummaryVal = await SecureStore.getItemAsync(`${user.id}_daily_summary_enabled`);
+        setDailySummaryEnabled(dailySummaryVal !== 'false');
 
         const simActiveKey = `${user.id}_simulated_suggestion_active`;
         const simDataKey = `${user.id}_simulated_suggestion_data`;
@@ -102,6 +193,12 @@ export default function ProfileScreen() {
         payload.smart_activity_detection = value === 'true';
       } else if (key === 'smart_notifications_enabled') {
         payload.smart_notifications = value === 'true';
+        if (value === 'true') {
+          // Fire push notifications permission prompt and token registration
+          setTimeout(async () => {
+            await registerForPushNotificationsAsync(user.id);
+          }, 100);
+        }
       } else if (key === 'weather_on_timeline') {
         payload.weather_on_timeline = value === 'true';
       } else if (key === 'notifications_frequency') {
@@ -165,129 +262,210 @@ export default function ProfileScreen() {
   };
 
   const triggerTestDetection = async () => {
+    // Strict Dual-Lockout Activation & Detection model rules
     if (!locationEnabled || !smartDetectionEnabled || !notificationsEnabled) {
       Alert.alert(
         'Setup Required',
-        'Please ensure "Enable Location Services", "Smart Activity Detection", and "Smart Notifications" are all turned ON before running the simulator!'
+        `To trigger geofence stays, please ensure all three switches are turned ON:\n\n` +
+        `• "Enable Location Services" (${locationEnabled ? '🟢 ON' : '🔴 OFF'})\n` +
+        `• "Smart Activity Detection" (${smartDetectionEnabled ? '🟢 ON' : '🔴 OFF'})\n` +
+        `• "Smart Activity Notifications" (${notificationsEnabled ? '🟢 ON' : '🔴 OFF'})`
       );
       return;
     }
 
-    setIsLocating(true);
+    const preset = SIMULATION_PRESETS.find(p => p.id === selectedPresetId) || SIMULATION_PRESETS[0];
+
+    // Anti-Spam: check if already logged in the schedule/timeline today
+    const isAlreadyLogged = scheduleItems.some(item => {
+      const todayStr = getTodayDateStr();
+      const matchDate = item.date === todayStr;
+      const matchTitle = item.title.toLowerCase().includes(preset.inferredActivity.toLowerCase()) || 
+                         item.title.toLowerCase().includes(preset.placeName.toLowerCase());
+      const matchLocation = item.location && item.location.name.toLowerCase() === preset.placeName.toLowerCase();
+      return matchDate && (matchTitle || matchLocation);
+    });
+
+    if (isAlreadyLogged) {
+      Alert.alert(
+        'Notification Suppressed (De-duplication)',
+        `This activity (${preset.inferredActivity} at ${preset.placeName}) has already been logged in your schedule for today. Suppressing duplicate location alert.`
+      );
+      return;
+    }
+
+    // Anti-Spam: check 4-hour same-location cooldown
     try {
-      // 1. Request foreground permission from the device
-      let { status } = await Location.requestForegroundPermissionsAsync();
-      if (status !== 'granted') {
+      const logKey = `${user?.id}_location_notif_logs`;
+      const storedLogs = await SecureStore.getItemAsync(logKey);
+      const logsArray = storedLogs ? JSON.parse(storedLogs) : [];
+      
+      // Filter logs within the last 4 hours (240 minutes)
+      const fourHoursAgo = Date.now() - 4 * 60 * 60 * 1000;
+      const recentLogs = logsArray.filter((log: any) => new Date(log.timestamp).getTime() > fourHoursAgo);
+
+      // Check if place matches
+      const isPlaceRecent = recentLogs.some((log: any) => log.placeName.toLowerCase() === preset.placeName.toLowerCase());
+      if (isPlaceRecent) {
         Alert.alert(
-          'System Permission Denied',
-          'AuraJournal requires system-level location access to query actual coordinates.\n\nPlease open your iOS Settings -> Expo Go -> Location and select "While Using the App" or "Always" to proceed.'
+          'Notification Suppressed (4-Hour Cooldown)',
+          `Repeat stays at "${preset.placeName}" are suppressed. A cooldown period of 4 hours applies before another notification is generated for this location.`
         );
-        setIsLocating(false);
         return;
       }
 
-      // 2. Query actual device coordinates
-      const location = await Location.getCurrentPositionAsync({
-        accuracy: Location.Accuracy.Balanced,
+      // Add to recent logs
+      recentLogs.push({
+        placeName: preset.placeName,
+        timestamp: new Date().toISOString(),
+        user_id: user?.id,
       });
+      await SecureStore.setItemAsync(logKey, JSON.stringify(recentLogs));
+    } catch (logErr) {
+      console.warn('Failed to verify location cooldown logs:', logErr);
+    }
 
-      const { latitude, longitude } = location.coords;
-      console.log('📡 [Location] Fetched coords:', latitude, longitude);
+    if (preset.id === 'live') {
+      setIsLocating(true);
+      try {
+        let { status } = await Location.requestForegroundPermissionsAsync();
+        if (status !== 'granted') {
+          Alert.alert(
+            'System Permission Denied',
+            'AuraJournal requires system-level location access to query actual coordinates.\n\nPlease open your iOS Settings -> Expo Go -> Location and select "While Using the App" or "Always" to proceed.'
+          );
+          setIsLocating(false);
+          return;
+        }
 
-      // 3. Reverse geocode coordinates to find the actual place name
-      const geocodedAddresses = await Location.reverseGeocodeAsync({
-        latitude,
-        longitude,
-      });
+        const location = await Location.getCurrentPositionAsync({
+          accuracy: Location.Accuracy.Balanced,
+        });
 
-      let resolvedPlace = 'Current Location';
-      if (geocodedAddresses && geocodedAddresses.length > 0) {
-        const addr = geocodedAddresses[0];
-        // Formulate a beautiful place label from street, name, or city
-        resolvedPlace = addr.name || addr.street || addr.district || addr.subregion || addr.city || 'Local Hub';
+        const { latitude, longitude } = location.coords;
+        console.log('📡 [Location] Fetched coords:', latitude, longitude);
+
+        const geocodedAddresses = await Location.reverseGeocodeAsync({ latitude, longitude });
+
+        let resolvedPlace = 'Current Location';
+        if (geocodedAddresses && geocodedAddresses.length > 0) {
+          const addr = geocodedAddresses[0];
+          resolvedPlace = addr.name || addr.street || addr.district || addr.subregion || addr.city || 'Local Hub';
+        }
+
+        const now = new Date();
+        const currentHour = now.getHours();
+
+        let inferredActivity = 'Workout';
+        let category = 'health';
+        let icon = 'gym' as any;
+        let color = 'green';
+        let durationMinutes = 45;
+
+        if (currentHour >= 5 && currentHour < 12) {
+          inferredActivity = 'Morning Jog / Walk';
+          category = 'health';
+          icon = 'walk';
+          color = 'green';
+          durationMinutes = 50;
+        } else if (currentHour >= 12 && currentHour < 17) {
+          inferredActivity = 'Lunch Break';
+          category = 'social';
+          icon = 'groups';
+          color = 'yellow';
+          durationMinutes = 60;
+        } else if (currentHour >= 17 && currentHour < 21) {
+          inferredActivity = 'Work / Study Session';
+          category = 'work';
+          icon = 'laptop';
+          color = 'purple';
+          durationMinutes = 120;
+        } else {
+          inferredActivity = 'Evening Wind Down';
+          category = 'rest';
+          icon = 'rest';
+          color = 'gray';
+          durationMinutes = 90;
+        }
+
+        const displayHour = currentHour % 12 === 0 ? 12 : currentHour % 12;
+        const displayMin = String(now.getMinutes()).padStart(2, '0');
+        const ampm = currentHour >= 12 ? 'PM' : 'AM';
+        const timeOfDayLabel = `${displayHour}:${displayMin} ${ampm}`;
+
+        const mockSuggestion = {
+          id: 'real-loc-' + Date.now(),
+          placeName: resolvedPlace,
+          durationMinutes: durationMinutes,
+          inferredActivity: inferredActivity,
+          category: category,
+          icon: icon,
+          color: color,
+          timeOfDay: timeOfDayLabel,
+          date: getTodayDateStr(),
+          latitude,
+          longitude,
+          title: 'Activity Inferred',
+          message: `We noticed you spent ${durationMinutes} minutes at ${resolvedPlace}. Add this activity to your timeline?`
+        };
+
+        setActiveSimulation(mockSuggestion);
+        if (user) {
+          await SecureStore.setItemAsync(`${user.id}_simulated_suggestion_active`, 'true');
+          await SecureStore.setItemAsync(`${user.id}_simulated_suggestion_data`, JSON.stringify(mockSuggestion));
+        }
+
+        // Trigger real native push notification instantly on locked/background screens
+        await scheduleActivityNotification({
+          placeName: resolvedPlace,
+          durationMinutes: durationMinutes,
+          inferredActivity: inferredActivity,
+          category: category,
+          icon: icon,
+          color: color,
+          timeOfDay: timeOfDayLabel,
+          date: getTodayDateStr(),
+          latitude,
+          longitude,
+          title: 'Activity Detected',
+          message: `You spent ${durationMinutes} minutes at ${resolvedPlace}. Add a ${inferredActivity} activity?`,
+        });
+
+        Alert.alert(
+          'Real Location Detected!',
+          `Your device GPS successfully resolved your current location as: "${resolvedPlace}".\nWe inferred a stay of ${durationMinutes} minutes starting at ${timeOfDayLabel}. Review the suggestion card below or on your Home screen!`
+        );
+      } catch (err) {
+        console.warn('GPS geocoding failed, falling back to simulated Green Lake Park:', err);
+        preset.id = 'walk'; // Trigger fallback
+      } finally {
+        setIsLocating(false);
       }
+    }
 
-      // 4. Infer stay properties dynamically based on local time
+    if (preset.id !== 'live') {
+      // Use preset details
       const now = new Date();
       const currentHour = now.getHours();
-
-      let inferredActivity = 'Workout';
-      let category = 'health';
-      let icon = 'gym';
-      let color = 'green';
-      let durationMinutes = 45;
-
-      if (currentHour >= 5 && currentHour < 12) {
-        inferredActivity = 'Morning Jog / Walk';
-        category = 'health';
-        icon = 'walk';
-        color = 'green';
-        durationMinutes = 50;
-      } else if (currentHour >= 12 && currentHour < 17) {
-        inferredActivity = 'Lunch Break';
-        category = 'social';
-        icon = 'rest';
-        color = 'yellow';
-        durationMinutes = 60;
-      } else if (currentHour >= 17 && currentHour < 21) {
-        inferredActivity = 'Work / Study Session';
-        category = 'work';
-        icon = 'laptop';
-        color = 'purple';
-        durationMinutes = 120;
-      } else {
-        inferredActivity = 'Evening Wind Down';
-        category = 'rest';
-        icon = 'rest';
-        color = 'gray';
-        durationMinutes = 90;
-      }
-
       const displayHour = currentHour % 12 === 0 ? 12 : currentHour % 12;
       const displayMin = String(now.getMinutes()).padStart(2, '0');
       const ampm = currentHour >= 12 ? 'PM' : 'AM';
       const timeOfDayLabel = `${displayHour}:${displayMin} ${ampm}`;
 
       const mockSuggestion = {
-        id: 'real-loc-' + Date.now(),
-        placeName: resolvedPlace,
-        durationMinutes: durationMinutes,
-        inferredActivity: inferredActivity,
-        category: category,
-        icon: icon,
-        color: color,
+        id: 'mock-preset-' + preset.id + '-' + Date.now(),
+        placeName: preset.placeName,
+        durationMinutes: preset.durationMinutes,
+        inferredActivity: preset.inferredActivity,
+        category: preset.category,
+        icon: preset.icon,
+        color: preset.color,
         timeOfDay: timeOfDayLabel,
-        date: getTodayDateStr(),
-        latitude,
-        longitude,
-      };
-
-      setActiveSimulation(mockSuggestion);
-      if (user) {
-        await SecureStore.setItemAsync(`${user.id}_simulated_suggestion_active`, 'true');
-        await SecureStore.setItemAsync(`${user.id}_simulated_suggestion_data`, JSON.stringify(mockSuggestion));
-      }
-
-      Alert.alert(
-        'Real Location Detected!',
-        `Your device GPS successfully resolved your current location as: "${resolvedPlace}".\nWe inferred a stay of ${durationMinutes} minutes starting at ${timeOfDayLabel}. Review the suggestion card below or on your Home screen!`
-      );
-    } catch (err) {
-      console.warn('Failed to fetch live coordinates, falling back to simulated Discovery Park:', err);
-      
-      // Fallback
-      const mockSuggestion = {
-        id: 'mock-loc-' + Date.now(),
-        placeName: 'Discovery Park',
-        durationMinutes: 80,
-        inferredActivity: 'Walking / Jogging',
-        category: 'health',
-        icon: 'walk',
-        color: 'green',
-        timeOfDay: '10:30 AM',
         date: getTodayDateStr(),
         latitude: 34.05,
         longitude: -118.24,
+        title: preset.title,
+        message: preset.message,
       };
 
       setActiveSimulation(mockSuggestion);
@@ -296,12 +474,24 @@ export default function ProfileScreen() {
         await SecureStore.setItemAsync(`${user.id}_simulated_suggestion_data`, JSON.stringify(mockSuggestion));
       }
 
+      // Trigger real native push notification instantly on locked/background screens
+      await scheduleActivityNotification({
+        placeName: preset.placeName,
+        durationMinutes: preset.durationMinutes,
+        inferredActivity: preset.inferredActivity,
+        category: preset.category,
+        icon: preset.icon,
+        color: preset.color,
+        timeOfDay: timeOfDayLabel,
+        date: getTodayDateStr(),
+        title: 'Activity Detected',
+        message: `You spent ${preset.durationMinutes} minutes at ${preset.placeName}. Add a ${preset.inferredActivity} activity?`,
+      });
+
       Alert.alert(
-        'Simulated Fallback Activated',
-        'Could not fetch real-time GPS bounds (e.g. simulator without a custom location active). Toggled simulated stay at "Discovery Park" instead.'
+        'Simulated Notification Triggered!',
+        `A stay stay of ${preset.durationMinutes}m at "${preset.placeName}" has been detected. Review the notification card below or on your Home screen!`
       );
-    } finally {
-      setIsLocating(false);
     }
   };
 
@@ -353,6 +543,42 @@ export default function ProfileScreen() {
       
       const startISO = `${activeSimulation.date}T${startTime24h}`;
 
+      let weatherData = undefined;
+      if (weatherOnTimeline) {
+        try {
+          const lat = activeSimulation.latitude || 34.05;
+          const lon = activeSimulation.longitude || -118.24;
+          const weather = await api.getWeather(lat, lon, startISO);
+          if (weather.status === 'ok' && weather.temperature_c !== undefined && weather.temperature_f !== undefined && weather.weathercode !== undefined) {
+            const code = weather.weathercode;
+            const isNight = h < 6 || h >= 18;
+            let condition = 'Clear';
+            if (code === 0) {
+              condition = isNight ? 'Clear' : 'Sunny';
+            } else if (code >= 1 && code <= 3) {
+              condition = 'Cloudy';
+            } else if (code === 45 || code === 48) {
+              condition = 'Foggy';
+            } else if ((code >= 51 && code <= 57) || (code >= 61 && code <= 67) || (code >= 80 && code <= 82)) {
+              condition = 'Rainy';
+            } else if ((code >= 71 && code <= 77) || (code >= 85 && code <= 86)) {
+              condition = 'Snowy';
+            } else if (code >= 95 && code <= 99) {
+              condition = 'Stormy';
+            }
+            weatherData = {
+              temperature_c: weather.temperature_c,
+              temperature_f: weather.temperature_f,
+              condition,
+              windSpeed: weather.wind_speed || 5.0,
+              humidity: weather.humidity || 50.0,
+            };
+          }
+        } catch (weaErr) {
+          console.warn('Weather snapshot enrichment failed in handleAddLocationToTimeline:', weaErr);
+        }
+      }
+
       const newLocalItem: any = {
         id: Math.random().toString(),
         title: activeSimulation.inferredActivity,
@@ -367,7 +593,8 @@ export default function ProfileScreen() {
           name: activeSimulation.placeName,
           latitude: activeSimulation.latitude || 34.05,
           longitude: activeSimulation.longitude || -118.24,
-        }
+        },
+        weather: weatherData,
       };
 
       // Save to backend database
@@ -383,39 +610,75 @@ export default function ProfileScreen() {
     }
   };
 
-  const handleAddLocationToEvents = async () => {
+  const handleAddLocationToEvents = () => {
     if (!activeSimulation) return;
+    setQuickAddActivityName(activeSimulation.inferredActivity);
+    setQuickAddDate(activeSimulation.date);
+    setQuickAddTime(activeSimulation.timeOfDay);
+    setQuickAddNotes('');
+    setShowQuickAddSheet(true);
+  };
+
+  const handleSaveQuickAddEvent = async () => {
+    if (!activeSimulation) return;
+    setIsSavingQuickAdd(true);
     try {
-      const sentence = `${activeSimulation.inferredActivity} at ${activeSimulation.timeOfDay} for ${activeSimulation.durationMinutes} minutes`;
+      const sentence = `${quickAddActivityName} (${activeSimulation.placeName}) at ${quickAddTime} on ${quickAddDate}. Notes: ${quickAddNotes || 'None'}`;
       
-      // Construct a premium schedule item matching calendar requirements
-      const startTimeISO = `${activeSimulation.date}T10:30:00`;
-      const endTimeISO = `${activeSimulation.date}T11:50:00`; // 80 min duration
+      // Parse 12h time to 24h format for ISO string construction
+      const timePart = quickAddTime.split(' ')[0] || '';
+      const ampm = quickAddTime.split(' ')[1] || 'AM';
+      let h = parseInt(timePart.split(':')[0]) || 12;
+      const m = parseInt(timePart.split(':')[1]) || 0;
+      if (ampm.toUpperCase() === 'PM' && h < 12) h += 12;
+      if (ampm.toUpperCase() === 'AM' && h === 12) h = 0;
+      const startTime24h = `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}:00`;
+      
+      const startISO = `${quickAddDate}T${startTime24h}`;
+      
+      // Calculate end time based on duration
+      const startDate = new Date(startISO);
+      startDate.setMinutes(startDate.getMinutes() + activeSimulation.durationMinutes);
+      const yyyy = startDate.getFullYear();
+      const mm = String(startDate.getMonth() + 1).padStart(2, '0');
+      const dd = String(startDate.getDate()).padStart(2, '0');
+      const hh = String(startDate.getHours()).padStart(2, '0');
+      const min = String(startDate.getMinutes()).padStart(2, '0');
+      const endISO = `${yyyy}-${mm}-${dd}T${hh}:${min}:00`;
+
+      const ampmEnd = startDate.getHours() >= 12 ? 'PM' : 'AM';
+      const displayHourEnd = startDate.getHours() % 12 === 0 ? 12 : startDate.getHours() % 12;
+      const displayMinEnd = String(startDate.getMinutes()).padStart(2, '0');
+      const timeRangeStr = `${quickAddTime} - ${displayHourEnd}:${displayMinEnd} ${ampmEnd}`;
 
       const newEvent: any = {
         id: Math.random().toString(),
-        title: `${activeSimulation.inferredActivity} (${activeSimulation.placeName})`,
-        timeRange: `10:30 AM - 11:50 AM`,
+        title: `${quickAddActivityName} (${activeSimulation.placeName})`,
+        timeRange: timeRangeStr,
         duration: `${activeSimulation.durationMinutes} min`,
         category: activeSimulation.category,
         icon: activeSimulation.icon,
         color: activeSimulation.color,
-        date: activeSimulation.date,
-        startTime: startTimeISO,
-        endTime: endTimeISO,
+        date: quickAddDate,
+        startTime: startISO,
+        endTime: endISO,
+        notes: quickAddNotes || undefined,
         isAiExtracted: false,
       };
 
       // Save to database
-      await api.createActivity(sentence, `${activeSimulation.date}T12:00:00`);
+      await api.createActivity(sentence, `${quickAddDate}T12:00:00`);
       // Save event structure to calendar schedule
-      addNoteAndExtract(sentence, activeSimulation.date, [newEvent]);
+      await addNoteAndExtract(sentence, quickAddDate, [newEvent]);
 
       Alert.alert('Added to Calendar', 'The activity was added as a scheduled event in today’s calendar feed!');
+      setShowQuickAddSheet(false);
       await clearSimulatedSuggestion();
     } catch (err) {
       console.error(err);
       Alert.alert('Error', 'Failed to schedule calendar event.');
+    } finally {
+      setIsSavingQuickAdd(false);
     }
   };
 
@@ -636,28 +899,110 @@ export default function ProfileScreen() {
         <View style={styles.absoluteOverlay}>
           <View style={styles.modalContent}>
             <View style={styles.modalHeader}>
-              <ThemedText style={styles.modalTitle}>Notification Settings</ThemedText>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                <IconSymbol size={24} name="bell.fill" color={PURPLE} />
+                <ThemedText style={styles.modalTitle}>Notification Settings</ThemedText>
+              </View>
               <TouchableOpacity onPress={() => setActiveModal(null)}>
                 <IconSymbol size={24} name="xmark" color="#FFF" />
               </TouchableOpacity>
             </View>
-            <View style={styles.modalBody}>
-              <View style={styles.switchRow}>
-                <View style={{ flex: 1 }}>
-                  <ThemedText style={styles.switchLabel}>Push Notifications</ThemedText>
-                  <ThemedText style={styles.switchDesc}>Enable real-time ambient alerts</ThemedText>
+
+            <ScrollView style={{ maxHeight: 420 }} contentContainerStyle={{ gap: 16, paddingBottom: 24 }} showsVerticalScrollIndicator={false}>
+              {/* TOGGLE 1: Enable Push Notifications */}
+              <View style={styles.switchRowCard}>
+                <View style={{ flex: 1, gap: 4 }}>
+                  <ThemedText style={styles.switchRowLabel}>Enable Push Notifications</ThemedText>
+                  <ThemedText style={styles.switchRowDesc}>
+                    Receive native iOS geofence alert banners when the app is in background or locked.
+                  </ThemedText>
                 </View>
-                <Switch value={true} trackColor={{ true: PURPLE }} />
+                <Switch 
+                  value={notificationsEnabled} 
+                  onValueChange={(val) => {
+                    setNotificationsEnabled(val);
+                    saveSetting('smart_notifications_enabled', String(val));
+                  }}
+                  trackColor={{ true: PURPLE }} 
+                />
               </View>
+
+              {/* TOGGLE 2: Smart Activity Detection */}
+              <View style={[styles.switchRowCard, { opacity: (locationEnabled && notificationsEnabled) ? 1 : 0.4 }]}>
+                <View style={{ flex: 1, gap: 4 }}>
+                  <ThemedText style={styles.switchRowLabel}>Smart Activity Detection</ThemedText>
+                  <ThemedText style={styles.switchRowDesc}>
+                    {!locationEnabled 
+                      ? '⚠️ Requires Location Services to be enabled in Location Intelligence.' 
+                      : !notificationsEnabled 
+                        ? '⚠️ Requires Push Notifications to be enabled.'
+                        : 'Detect stays at gyms, parks, restaurants, cafes, and studying facilities.'}
+                  </ThemedText>
+                </View>
+                <Switch 
+                  value={smartDetectionEnabled} 
+                  disabled={!locationEnabled || !notificationsEnabled}
+                  onValueChange={(val) => {
+                    setSmartDetectionEnabled(val);
+                    saveSetting('smart_activity_detection_enabled', String(val));
+                  }}
+                  trackColor={{ true: PURPLE }} 
+                />
+              </View>
+
+              {/* Notification Frequency Card */}
+              {notificationsEnabled && (
+                <View style={styles.frequencyCard}>
+                  <ThemedText style={styles.frequencyTitle}>Notification Frequency</ThemedText>
+                  <View style={styles.pillRow}>
+                    {(['instant', 'daily', 'weekly', 'off'] as const).map((freqOption) => (
+                      <TouchableOpacity
+                        key={freqOption}
+                        style={[
+                          styles.freqPill,
+                          frequency === freqOption && styles.freqPillSelected,
+                        ]}
+                        onPress={() => {
+                          setFrequency(freqOption);
+                          saveSetting('notifications_frequency', freqOption);
+                        }}
+                      >
+                        <ThemedText
+                          style={[
+                            styles.freqPillText,
+                            frequency === freqOption && styles.freqPillTextSelected,
+                          ]}
+                        >
+                          {freqOption === 'daily' ? 'DAILY SUMMARY' : freqOption === 'weekly' ? 'WEEKLY SUMMARY' : freqOption.toUpperCase()}
+                        </ThemedText>
+                      </TouchableOpacity>
+                    ))}
+                  </View>
+                </View>
+              )}
+
               <View style={styles.innerDivider} />
-              <View style={styles.switchRow}>
-                <View style={{ flex: 1 }}>
-                  <ThemedText style={styles.switchLabel}>Daily Journal Summary</ThemedText>
-                  <ThemedText style={styles.switchDesc}>Receive a daily review digest</ThemedText>
+
+              {/* TOGGLE 3: Daily Journal Summary */}
+              <View style={styles.switchRowCard}>
+                <View style={{ flex: 1, gap: 4 }}>
+                  <ThemedText style={styles.switchRowLabel}>Daily Journal Summary</ThemedText>
+                  <ThemedText style={styles.switchRowDesc}>
+                    Receive a daily review digest of your logged metrics and activities offline.
+                  </ThemedText>
                 </View>
-                <Switch value={true} trackColor={{ true: PURPLE }} />
+                <Switch 
+                  value={dailySummaryEnabled} 
+                  onValueChange={(val) => {
+                    setDailySummaryEnabled(val);
+                    if (user) {
+                      SecureStore.setItemAsync(`${user.id}_daily_summary_enabled`, String(val));
+                    }
+                  }}
+                  trackColor={{ true: PURPLE }} 
+                />
               </View>
-            </View>
+            </ScrollView>
           </View>
         </View>
       )}
@@ -744,7 +1089,9 @@ export default function ProfileScreen() {
               <View style={{ flex: 1, gap: 4 }}>
                 <ThemedText style={styles.switchRowLabel}>Smart Activity Detection</ThemedText>
                 <ThemedText style={styles.switchRowDesc}>
-                  Infers possible activity type based on category, stay length, and time of day.
+                  {!locationEnabled 
+                    ? '⚠️ Requires Location Services to be enabled first.'
+                    : 'Infers possible activity type based on category, stay length, and time of day.'}
                 </ThemedText>
               </View>
               <Switch
@@ -819,12 +1166,14 @@ export default function ProfileScreen() {
               </View>
             )}
 
-            {/* TOGGLE 3: Smart Notifications */}
+            {/* TOGGLE 3: Enable Push Notifications */}
             <View style={[styles.switchRowCard, { opacity: (locationEnabled && smartDetectionEnabled) ? 1 : 0.4 }]}>
               <View style={{ flex: 1, gap: 4 }}>
-                <ThemedText style={styles.switchRowLabel}>Smart Notifications</ThemedText>
+                <ThemedText style={styles.switchRowLabel}>Enable Push Notifications</ThemedText>
                 <ThemedText style={styles.switchRowDesc}>
-                  Get notifications when AuraJournal recognizes spent stays at places.
+                  {!locationEnabled || !smartDetectionEnabled
+                    ? '⚠️ Requires Location Services & Smart Detection to be enabled first.'
+                    : 'Receive native iOS geofence alert banners when the app is in background or locked.'}
                 </ThemedText>
               </View>
               <Switch
@@ -881,15 +1230,41 @@ export default function ProfileScreen() {
             <ThemedText style={styles.simulationHeader}>🧪 GEOFENCING TEST ENGINE</ThemedText>
             <View style={styles.simulationCard}>
               <ThemedText style={styles.simText}>
-                Use this simulator to test and review the ambient Location Detection notification flow. Tapping the trigger will fetch your actual device GPS coordinates and reverse geocode them.
+                Use this simulator to test and review the ambient Location Detection notification flow. Select a stay preset below, then trigger the geofence alert:
               </ThemedText>
+
+              {/* Preset Selection Chips Row */}
+              <View style={styles.presetChipsScroll}>
+                {SIMULATION_PRESETS.map((p) => {
+                  const isSelected = selectedPresetId === p.id;
+                  return (
+                    <TouchableOpacity
+                      key={p.id}
+                      style={[
+                        styles.presetChip,
+                        isSelected && styles.presetChipSelected,
+                      ]}
+                      onPress={() => setSelectedPresetId(p.id)}
+                    >
+                      <ThemedText
+                        style={[
+                          styles.presetChipText,
+                          isSelected && styles.presetChipTextSelected,
+                        ]}
+                      >
+                        {p.id === 'live' ? '📡 Live GPS' : p.placeName}
+                      </ThemedText>
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
 
               <TouchableOpacity
                 style={[
                   styles.simulatorBtn,
-                  (!locationEnabled || !smartDetectionEnabled || !notificationsEnabled || isLocating) && styles.simulatorBtnDisabled,
+                  (!locationEnabled || !notificationsEnabled || isLocating) && styles.simulatorBtnDisabled,
                 ]}
-                disabled={!locationEnabled || !smartDetectionEnabled || !notificationsEnabled || isLocating}
+                disabled={!locationEnabled || !notificationsEnabled || isLocating}
                 onPress={triggerTestDetection}
               >
                 {isLocating ? (
@@ -902,28 +1277,28 @@ export default function ProfileScreen() {
                 )}
               </TouchableOpacity>
 
-              {/* Simulated Geofencing Card Notification (Bottom Sheet Mockup) */}
+              {/* Simulated Geofencing Card Notification (Ambient Notification Panel) */}
               {activeSimulation && (
                 <View style={styles.mockNotificationCard}>
                   <View style={styles.mockNotifHeader}>
                     <IconSymbol size={18} name="location.fill" color={PURPLE} />
-                    <ThemedText style={styles.mockNotifTitle}>📍 New Location Inferred</ThemedText>
+                    <ThemedText style={styles.mockNotifTitle}>📍 {activeSimulation.title || 'Activity Detected'}</ThemedText>
                     <TouchableOpacity onPress={clearSimulatedSuggestion} style={styles.mockNotifClose}>
                       <IconSymbol size={16} name="xmark" color="#FFF" style={{ opacity: 0.5 }} />
                     </TouchableOpacity>
                   </View>
 
                   <ThemedText style={styles.mockNotifMsg}>
-                    We noticed you spent <ThemedText style={{ fontWeight: 'bold', color: PURPLE }}>{activeSimulation.durationMinutes}m</ThemedText> at <ThemedText style={{ fontWeight: 'bold' }}>{activeSimulation.placeName}</ThemedText>. Would you like to add this as an activity?
+                    {activeSimulation.message || `We noticed you spent ${activeSimulation.durationMinutes} minutes at ${activeSimulation.placeName}. Add this activity?`}
                   </ThemedText>
 
                   <View style={styles.mockNotifMetaRow}>
                     <ThemedText style={styles.mockNotifMetaLabel}>
-                      Inferred Activity: <ThemedText style={{ fontWeight: '700', color: GREEN }}>{activeSimulation.inferredActivity}</ThemedText>
+                      Suggested Activity: <ThemedText style={{ fontWeight: '700', color: GREEN }}>{activeSimulation.inferredActivity}</ThemedText>
                     </ThemedText>
                   </View>
 
-                  {/* Actions */}
+                  {/* Actions (Timeline, Quick Add Event, Ignore) */}
                   <View style={styles.mockActionsGrid}>
                     <TouchableOpacity style={styles.mockActionBtn} onPress={handleAddLocationToTimeline}>
                       <IconSymbol size={14} name="paperplane.fill" color={BLUE} />
@@ -932,7 +1307,7 @@ export default function ProfileScreen() {
 
                     <TouchableOpacity style={styles.mockActionBtn} onPress={handleAddLocationToEvents}>
                       <IconSymbol size={14} name="calendar" color={GREEN} />
-                      <ThemedText style={styles.mockActionBtnText}>Add Calendar</ThemedText>
+                      <ThemedText style={styles.mockActionBtnText}>Add Event</ThemedText>
                     </TouchableOpacity>
                   </View>
 
@@ -942,7 +1317,7 @@ export default function ProfileScreen() {
                     </TouchableOpacity>
 
                     <TouchableOpacity style={styles.mockActionBtnSmall} onPress={clearSimulatedSuggestion}>
-                      <ThemedText style={[styles.mockActionBtnTextSmall, { color: RED }]}>Ignore</ThemedText>
+                      <ThemedText style={[styles.mockActionBtnTextSmall, { color: RED }]}>Dismiss</ThemedText>
                     </TouchableOpacity>
                   </View>
                 </View>
@@ -1029,6 +1404,70 @@ export default function ProfileScreen() {
 
               <TouchableOpacity style={styles.saveEditBtn} onPress={handleSaveEdit}>
                 <ThemedText style={styles.saveEditBtnText}>Apply Inferred Settings</ThemedText>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      )}
+
+      {/* 8. Lightweight Quick Add Event Sub-Sheet */}
+      {showQuickAddSheet && (
+        <View style={styles.editBg}>
+          <View style={styles.editCard}>
+            <View style={styles.editHeader}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                <IconSymbol size={20} name="calendar" color={PURPLE} />
+                <ThemedText style={styles.editTitle}>Quick Add Event</ThemedText>
+              </View>
+              <TouchableOpacity onPress={() => setShowQuickAddSheet(false)}>
+                <IconSymbol size={24} name="xmark" color="#FFF" />
+              </TouchableOpacity>
+            </View>
+
+            <View style={styles.editBody}>
+              <ThemedText style={styles.inputLabel}>Activity Name</ThemedText>
+              <TextInput
+                style={styles.textInput}
+                value={quickAddActivityName}
+                onChangeText={setQuickAddActivityName}
+                placeholder="e.g. Walking"
+                placeholderTextColor="rgba(255,255,255,0.4)"
+              />
+
+              <ThemedText style={styles.inputLabel}>Date</ThemedText>
+              <TextInput
+                style={styles.textInput}
+                value={quickAddDate}
+                onChangeText={setQuickAddDate}
+                placeholder="YYYY-MM-DD"
+                placeholderTextColor="rgba(255,255,255,0.4)"
+              />
+
+              <ThemedText style={styles.inputLabel}>Time</ThemedText>
+              <TextInput
+                style={styles.textInput}
+                value={quickAddTime}
+                onChangeText={setQuickAddTime}
+                placeholder="e.g. 10:30 AM"
+                placeholderTextColor="rgba(255,255,255,0.4)"
+              />
+
+              <ThemedText style={styles.inputLabel}>Notes (Optional)</ThemedText>
+              <TextInput
+                style={[styles.textInput, { height: 60, textAlignVertical: 'top' }]}
+                value={quickAddNotes}
+                onChangeText={setQuickAddNotes}
+                multiline={true}
+                placeholder="Add notes..."
+                placeholderTextColor="rgba(255,255,255,0.4)"
+              />
+
+              <TouchableOpacity style={styles.saveEditBtn} onPress={handleSaveQuickAddEvent} disabled={isSavingQuickAdd}>
+                {isSavingQuickAdd ? (
+                  <ActivityIndicator size="small" color="#0A0C1B" />
+                ) : (
+                  <ThemedText style={styles.saveEditBtnText}>Save Event Directly</ThemedText>
+                )}
               </TouchableOpacity>
             </View>
           </View>
@@ -1233,7 +1672,7 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     bottom: 0,
-    backgroundColor: 'rgba(0, 0, 0, 0.82)',
+    backgroundColor: 'rgba(8, 9, 22, 0.98)', // Premium solid dark background preventing background text bleed-through
     justifyContent: 'flex-end',
     zIndex: 9999,
   },
@@ -1620,6 +2059,35 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: '#FFF',
     opacity: 0.6,
+  },
+
+  presetChipsScroll: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+    marginVertical: 6,
+  },
+  presetChip: {
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 10,
+    backgroundColor: 'rgba(255, 255, 255, 0.05)',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.1)',
+  },
+  presetChipSelected: {
+    backgroundColor: 'rgba(143, 102, 255, 0.15)',
+    borderColor: '#8F66FF',
+  },
+  presetChipText: {
+    fontSize: 12,
+    color: '#FFF',
+    opacity: 0.6,
+  },
+  presetChipTextSelected: {
+    opacity: 1,
+    fontWeight: 'bold',
+    color: '#C4A8FF',
   },
 
   dangerBtn: {
