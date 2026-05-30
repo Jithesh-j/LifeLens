@@ -550,13 +550,7 @@ export default function ProfileScreen() {
           </TouchableOpacity>
           <View style={styles.divider} />
 
-          {/* Integrations settings */}
-          <TouchableOpacity style={styles.settingsRow} onPress={() => setActiveModal('integrations')}>
-            <IconSymbol size={22} name="link" color={primaryColor} />
-            <ThemedText style={styles.settingsLabel}>Integrations</ThemedText>
-            <IconSymbol size={16} name="chevron.right" color="#FFF" style={{ opacity: 0.3 }} />
-          </TouchableOpacity>
-          <View style={styles.divider} />
+
 
           {/* Location Intelligence (NEW) settings */}
           <TouchableOpacity style={styles.settingsRow} onPress={() => setActiveModal('location')}>
@@ -656,28 +650,7 @@ export default function ProfileScreen() {
         </View>
       )}
 
-      {/* 3. Integrations Overlay */}
-      {activeModal === 'integrations' && (
-        <View style={styles.absoluteOverlay}>
-          <View style={styles.modalContent}>
-            <View style={styles.modalHeader}>
-              <ThemedText style={styles.modalTitle}>External Integrations</ThemedText>
-              <TouchableOpacity onPress={() => setActiveModal(null)}>
-                <IconSymbol size={24} name="xmark" color="#FFF" />
-              </TouchableOpacity>
-            </View>
-            <View style={styles.modalBody}>
-              <View style={styles.detailRow}>
-                <ThemedText style={styles.detailLabel}>Google Calendar Sync</ThemedText>
-                <ThemedText style={[styles.detailValue, { color: GREEN }]}>Connected</ThemedText>
-              </View>
-              <ThemedText style={styles.infoText}>
-                Your calendar events are synced dynamically and merged directly into your Home Screen timeline.
-              </ThemedText>
-            </View>
-          </View>
-        </View>
-      )}
+
 
       {/* 4. Data & Privacy Overlay */}
       {activeModal === 'privacy' && (

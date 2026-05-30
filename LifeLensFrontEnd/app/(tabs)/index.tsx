@@ -16,7 +16,6 @@ import { useRouter, useNavigation } from 'expo-router';
 import * as SecureStore from 'expo-secure-store';
 import { useAuth } from '@/context/auth';
 import { useSchedule, getTodayDateStr, ScheduleItem } from '@/context/schedule';
-import { useGoogleCalendar, GoogleCalendarEvent } from '@/context/google-calendar';
 import { ThemedText } from '@/components/themed-text';
 import { IconSymbol } from '@/components/ui/icon-symbol';
 import { api } from '@/services/api';
@@ -128,7 +127,6 @@ const getWeatherEmoji = (condition?: string) => {
 
 function mergeEvents(
   localItems: ScheduleItem[],
-  googleEvents: GoogleCalendarEvent[],
   todayStr: string,
 ): UnifiedEvent[] {
   const events: (UnifiedEvent & { _sortKey: number })[] = [];
@@ -157,27 +155,6 @@ function mergeEvents(
         _sortKey: sortKey,
       });
     });
-
-  // Google events
-  googleEvents.forEach((ge) => {
-    const startMs = ge.isAllDay ? -1 : getSortKey(ge.startTime);
-    const endMs = ge.isAllDay ? -1 : getSortKey(ge.endTime);
-
-    // Filter out past Google events (keep if all day, or if end time is in the future)
-    if (!ge.isAllDay && endMs > 0 && endMs < nowMs) {
-      return;
-    }
-
-    events.push({
-      id: ge.id,
-      title: ge.title,
-      time: ge.isAllDay ? 'All Day' : formatTime12h(ge.startTime),
-      icon: 'calendar',
-      color: BLUE,
-      source: 'google',
-      _sortKey: startMs,
-    });
-  });
 
   events.sort((a, b) => a._sortKey - b._sortKey);
   return events.map(({ _sortKey, ...rest }) => rest);
@@ -372,7 +349,6 @@ export default function HomeScreen() {
   const { user } = useAuth();
   const insets = useSafeAreaInsets();
   const { scheduleItems } = useSchedule();
-  const { googleEvents, isSignedIn, signIn } = useGoogleCalendar();
   const router = useRouter();
   const navigation = useNavigation();
 
@@ -584,7 +560,7 @@ export default function HomeScreen() {
     setSelectedMin('30');
     setSelectedAmPm('AM');
     setSelectedDuration(pendingLocationSugg.durationMinutes);
-    setTargetCalendar(isSignedIn ? 'google' : 'local');
+    setTargetCalendar('local');
     setIsModalOpen(true);
     
     // Clear simulated suggestions once modal pops up
@@ -686,7 +662,7 @@ export default function HomeScreen() {
     setSelectedMin('00');
     setSelectedAmPm(ampm);
     setSelectedDuration(60);
-    setTargetCalendar(isSignedIn ? 'google' : 'local');
+    setTargetCalendar('local');
     setIsModalOpen(true);
   };
 
@@ -712,12 +688,11 @@ export default function HomeScreen() {
     setSelectedMin('00');
     setSelectedAmPm('AM');
     setSelectedDuration(45);
-    setTargetCalendar(isSignedIn ? 'google' : 'local');
+    setTargetCalendar('local');
     setIsModalOpen(true);
   };
 
   const { addNoteAndExtract } = useSchedule();
-  const { createEvent: createGoogleEvent } = useGoogleCalendar();
 
   const handleConfirmEvent = async () => {
     if (!selectedHour) {
@@ -736,68 +711,29 @@ export default function HomeScreen() {
       // Construct a natural language sentence so it parses back perfectly from the database
       const sentence = `${eventTitle} at ${selectedHour}:${selectedMin} ${selectedAmPm} for ${selectedDuration} minutes`;
 
-      if (targetCalendar === 'google') {
-        const success = await createGoogleEvent(eventTitle, startISO, endISO);
-        if (success) {
-          try {
-            await api.createActivity(sentence, `${todayStr}T12:00:00`);
-            console.log('Successfully saved Google-synced event to local backend database!');
-          } catch (err) {
-            console.error('Failed to sync event to backend:', err);
-          }
-          showToast('Event added successfully');
-          setIsModalOpen(false);
-        } else {
-          showToast('Failed to add to Google Calendar. Adding locally...');
-          // Fallback to local
-          const newLocalItem: ScheduleItem = {
-            id: Math.random().toString(),
-            title: eventTitle,
-            timeRange: timeRangeStr,
-            category: details.category,
-            icon: details.icon,
-            color: details.color,
-            date: todayStr,
-            startTime: startISO,
-            endTime: endISO,
-            isAiExtracted: false,
-          };
-          
-          try {
-            await api.createActivity(sentence, `${todayStr}T12:00:00`);
-            console.log('Successfully saved local fallback event to backend database!');
-          } catch (err) {
-            console.error('Failed to save event to backend:', err);
-          }
+      const newLocalItem: ScheduleItem = {
+        id: Math.random().toString(),
+        title: eventTitle,
+        timeRange: timeRangeStr,
+        category: details.category,
+        icon: details.icon,
+        color: details.color,
+        date: todayStr,
+        startTime: startISO,
+        endTime: endISO,
+        isAiExtracted: false,
+      };
 
-          addNoteAndExtract(sentence, todayStr, [newLocalItem]);
-          setIsModalOpen(false);
-        }
-      } else {
-        const newLocalItem: ScheduleItem = {
-          id: Math.random().toString(),
-          title: eventTitle,
-          timeRange: timeRangeStr,
-          category: details.category,
-          icon: details.icon,
-          color: details.color,
-          date: todayStr,
-          startTime: startISO,
-          endTime: endISO,
-          isAiExtracted: false,
-        };
-
-        try {
-          await api.createActivity(sentence, `${todayStr}T12:00:00`);
-          console.log('Successfully saved local event to backend database!');
-        } catch (err) {
-          console.error('Failed to save event to backend:', err);
-        }
-
-        addNoteAndExtract(sentence, todayStr, [newLocalItem]);
-        showToast('Event added successfully');
-        setIsModalOpen(false);
+      try {
+        await api.createActivity(sentence, `${todayStr}T12:00:00`);
+        console.log('Successfully saved local event to backend database!');
+      } catch (err) {
+        console.error('Failed to save event to backend:', err);
       }
+
+      addNoteAndExtract(sentence, todayStr, [newLocalItem]);
+      showToast('Event added successfully');
+      setIsModalOpen(false);
     } catch (e) {
       console.error(e);
       showToast('Error scheduling event');
@@ -808,7 +744,7 @@ export default function HomeScreen() {
   const firstName = useMemo(() => getFirstName(user?.full_name), [user?.full_name]);
 
   const analytics = useMemo(() => computeHomeAnalytics(scheduleItems, todayStr), [scheduleItems, todayStr]);
-  const mergedEvents = useMemo(() => mergeEvents(scheduleItems, googleEvents, todayStr), [scheduleItems, googleEvents, todayStr]);
+  const mergedEvents = useMemo(() => mergeEvents(scheduleItems, todayStr), [scheduleItems, todayStr]);
 
   const quickAddActivities = [
     { label: 'Walk', icon: 'figure.walk' as const, color: GREEN, bg: 'rgba(129, 199, 132, 0.12)' },
@@ -1009,12 +945,7 @@ export default function HomeScreen() {
             )}
           </View>
 
-          {!isSignedIn && (
-            <TouchableOpacity style={s.connectGoogleBtn} onPress={signIn}>
-              <IconSymbol size={16} name="link" color={PURPLE} style={{ marginRight: 8 }} />
-              <ThemedText style={s.connectGoogleText}>Connect Google Calendar</ThemedText>
-            </TouchableOpacity>
-          )}
+
         </FadeSlide>
 
         {/* ── Daily Summary ────────────────────────────────────────────── */}
@@ -1188,30 +1119,7 @@ export default function HomeScreen() {
               })}
             </View>
 
-            {/* Calendar Destination Selection */}
-            {isSignedIn && (
-              <View style={{ marginTop: 14 }}>
-                <ThemedText style={s.modalSectionLabel}>Save Destination</ThemedText>
-                <View style={s.calendarSelectRow}>
-                  <TouchableOpacity
-                    style={[s.calendarOption, targetCalendar === 'local' && s.selectedCalendarOption]}
-                    onPress={() => setTargetCalendar('local')}>
-                    <IconSymbol size={16} name="calendar" color={targetCalendar === 'local' ? PURPLE : '#D2D2E6'} />
-                    <ThemedText style={[s.calendarOptionText, targetCalendar === 'local' && s.selectedCalendarOptionText]}>
-                      Local Calendar
-                    </ThemedText>
-                  </TouchableOpacity>
-                  <TouchableOpacity
-                    style={[s.calendarOption, targetCalendar === 'google' && s.selectedCalendarOption]}
-                    onPress={() => setTargetCalendar('google')}>
-                    <IconSymbol size={16} name="link" color={targetCalendar === 'google' ? PURPLE : '#D2D2E6'} />
-                    <ThemedText style={[s.calendarOptionText, targetCalendar === 'google' && s.selectedCalendarOptionText]}>
-                      Google Calendar
-                    </ThemedText>
-                  </TouchableOpacity>
-                </View>
-              </View>
-            )}
+
 
             {/* Action Buttons */}
             <View style={s.modalActions}>
