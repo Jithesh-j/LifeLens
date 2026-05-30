@@ -51,6 +51,7 @@ interface ScheduleContextType {
     audioDetails?: { audioUri: string; durationSeconds: number; createdAt: string }
   ) => Promise<void>;
   approveSuggestion: (id: string) => void;
+  fetchUserSchedule: () => Promise<void>;
 }
 
 const ScheduleContext = createContext<ScheduleContextType | null>(null);
@@ -830,6 +831,7 @@ export function ScheduleProvider({ children }: { children: React.ReactNode }) {
         scheduleItems,
         addNoteAndExtract,
         approveSuggestion,
+        fetchUserSchedule,
       }}>
       {children}
     </ScheduleContext.Provider>

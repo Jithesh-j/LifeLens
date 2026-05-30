@@ -12,6 +12,7 @@ import {
   ActivityIndicator,
   Platform,
   AppState,
+  RefreshControl,
 } from 'react-native';
 import { useRouter, useNavigation } from 'expo-router';
 import * as SecureStore from 'expo-secure-store';
@@ -365,7 +366,7 @@ function getLocalEventDetails(title: string): {
 export default function HomeScreen() {
   const { user } = useAuth();
   const insets = useSafeAreaInsets();
-  const { scheduleItems } = useSchedule();
+  const { scheduleItems, fetchUserSchedule } = useSchedule();
   const router = useRouter();
   const navigation = useNavigation();
 
@@ -382,6 +383,10 @@ export default function HomeScreen() {
   const [quickAddNotes, setQuickAddNotes] = useState('');
   const [weatherOnTimeline, setWeatherOnTimeline] = useState(false);
   const [isSavingQuickAdd, setIsSavingQuickAdd] = useState(false);
+
+  // Notification History states
+  const [showNotifHistory, setShowNotifHistory] = useState(false);
+  const [notifHistory, setNotifHistory] = useState<any[]>([]);
 
   // Weather states
   const [weatherText, setWeatherText] = useState<string | null>(null);
@@ -544,12 +549,14 @@ export default function HomeScreen() {
   useEffect(() => {
     if (user) {
       loadLocationSuggestion();
+      loadNotifHistory();
     }
     const unsubscribe = navigation.addListener('focus', () => {
       fetchWeather();
       if (user) {
         loadLocationSuggestion();
         checkPendingNotificationActions();
+        loadNotifHistory();
       }
     });
     return unsubscribe;
@@ -561,11 +568,13 @@ export default function HomeScreen() {
     
     // Check once immediately on user load
     checkPendingNotificationActions();
+    loadNotifHistory();
 
     const subscription = AppState.addEventListener('change', (nextState) => {
       if (nextState === 'active') {
         console.log('📱 [AppState] App became active. Checking for pending push notification taps...');
         checkPendingNotificationActions();
+        loadNotifHistory();
       }
     });
 
@@ -573,6 +582,55 @@ export default function HomeScreen() {
       subscription.remove();
     };
   }, [user]);
+
+  const loadNotifHistory = async () => {
+    if (!user) return;
+    try {
+      const histKey = `${user.id}_notification_history`;
+      const stored = await SecureStore.getItemAsync(histKey);
+      if (stored) {
+        setNotifHistory(JSON.parse(stored));
+      } else {
+        setNotifHistory([]);
+      }
+    } catch (err) {
+      console.warn('Failed to load notification history:', err);
+    }
+  };
+
+  const handleClearNotifHistory = async () => {
+    if (!user) return;
+    try {
+      const histKey = `${user.id}_notification_history`;
+      await SecureStore.deleteItemAsync(histKey);
+      setNotifHistory([]);
+      showToast('Notification history cleared');
+    } catch (err) {
+      console.warn('Failed to clear notification history:', err);
+    }
+  };
+
+  const handleLogHistoryItem = async (item: any) => {
+    try {
+      // 1. Log to timeline
+      await handleAddLocationToTimelineDirect(item);
+      
+      // 2. Mark this item as logged in our history list
+      const histKey = `${user?.id}_notification_history`;
+      const stored = await SecureStore.getItemAsync(histKey);
+      const histArray = stored ? JSON.parse(stored) : [];
+      const updated = histArray.map((h: any) => {
+        if (h.id === item.id) {
+          return { ...h, logged: true };
+        }
+        return h;
+      });
+      setNotifHistory(updated);
+      await SecureStore.setItemAsync(histKey, JSON.stringify(updated));
+    } catch (err) {
+      console.error('Failed to log historical item:', err);
+    }
+  };
 
   const checkPendingNotificationActions = async () => {
     if (!user) return;
@@ -968,7 +1026,38 @@ export default function HomeScreen() {
   };
   const firstName = useMemo(() => getFirstName(user?.full_name), [user?.full_name]);
 
-  const analytics = useMemo(() => computeHomeAnalytics(scheduleItems, todayStr), [scheduleItems, todayStr]);
+  const [lastRefreshTime, setLastRefreshTime] = useState(Date.now());
+  const [refreshing, setRefreshing] = useState(false);
+
+  const handleRefresh = async () => {
+    setRefreshing(true);
+    try {
+      console.log('🔄 [Home] Manual refresh triggered. Loading fresh schedule & weather...');
+      await Promise.all([
+        fetchUserSchedule(),
+        fetchWeather(),
+        loadLocationSuggestion(),
+      ]);
+      setLastRefreshTime(Date.now());
+      showToast('Dashboard updated');
+    } catch (err) {
+      console.error('Failed manual refresh:', err);
+    } finally {
+      setRefreshing(false);
+    }
+  };
+
+  // Force suggestion & analytics recalculation/refresh every hour (3,600,000 ms)
+  useEffect(() => {
+    const timer = setInterval(() => {
+      console.log('⏰ [Analytics] Hourly refresh triggered. Fetching user schedule & regenerating AI suggestions...');
+      fetchUserSchedule().catch((err) => console.warn('Failed to fetch schedule in hourly timer:', err));
+      setLastRefreshTime(Date.now());
+    }, 3600000); // 1 hour
+    return () => clearInterval(timer);
+  }, [fetchUserSchedule]);
+
+  const analytics = useMemo(() => computeHomeAnalytics(scheduleItems, todayStr), [scheduleItems, todayStr, lastRefreshTime]);
   const mergedEvents = useMemo(() => mergeEvents(scheduleItems, todayStr), [scheduleItems, todayStr]);
 
   const quickAddActivities = [
@@ -992,6 +1081,14 @@ export default function HomeScreen() {
           { paddingTop: insets.top > 0 ? insets.top + 32 : 80 }
         ]} 
         showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={handleRefresh}
+            tintColor={PURPLE}
+            colors={[PURPLE]}
+          />
+        }
       >
         {/* ── Greeting Header ──────────────────────────────────────────── */}
         <FadeSlide index={0}>
@@ -1014,8 +1111,17 @@ export default function HomeScreen() {
                   ) : null}
                 </View>
               </View>
-              <TouchableOpacity style={s.notifBadge}>
+              <TouchableOpacity 
+                style={s.notifBadge} 
+                onPress={async () => {
+                  await loadNotifHistory();
+                  setShowNotifHistory(true);
+                }}
+              >
                 <IconSymbol size={22} name="bell.fill" color={LIGHT_PURPLE} />
+                {notifHistory.some(item => !item.logged) && (
+                  <View style={s.redDotBadge} />
+                )}
               </TouchableOpacity>
             </View>
           </View>
@@ -1075,7 +1181,12 @@ export default function HomeScreen() {
             <View style={s.suggestionHeader}>
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
                 <IconSymbol size={18} name="sparkles" color={PURPLE} />
-                <ThemedText style={s.suggestionHeaderText}>AI Suggestion</ThemedText>
+                <View>
+                  <ThemedText style={s.suggestionHeaderText}>AI Suggestion</ThemedText>
+                  <ThemedText style={{ fontSize: 10, color: 'rgba(255,255,255,0.35)', fontWeight: '600', marginTop: 1 }}>
+                    ⏱️ Hourly auto-refresh active
+                  </ThemedText>
+                </View>
               </View>
               <View style={s.bestForYouBadge}>
                 <ThemedText style={s.bestForYouText}>BEST FOR YOU</ThemedText>
@@ -1488,6 +1599,78 @@ export default function HomeScreen() {
                 )}
               </TouchableOpacity>
             </View>
+          </View>
+        </View>
+      )}
+
+      {/* ── Notification History Modal Overlay ────── */}
+      {showNotifHistory && (
+        <View style={s.locEditBg}>
+          <View style={[s.locEditCard, { maxHeight: 520 }]}>
+            <View style={s.locEditHeader}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                <IconSymbol size={22} name="bell.fill" color={PURPLE} />
+                <ThemedText style={s.locEditTitle}>Notification Center</ThemedText>
+              </View>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 14 }}>
+                {notifHistory.length > 0 && (
+                  <TouchableOpacity onPress={handleClearNotifHistory}>
+                    <ThemedText style={{ color: RED, fontSize: 13, fontWeight: '700' }}>Clear All</ThemedText>
+                  </TouchableOpacity>
+                )}
+                <TouchableOpacity onPress={() => setShowNotifHistory(false)}>
+                  <IconSymbol size={24} name="xmark" color="#FFF" />
+                </TouchableOpacity>
+              </View>
+            </View>
+
+            <ScrollView style={{ marginTop: 14 }} contentContainerStyle={{ gap: 12, paddingBottom: 24 }} showsVerticalScrollIndicator={false}>
+              {notifHistory.length === 0 ? (
+                <View style={{ alignItems: 'center', justifyContent: 'center', paddingVertical: 60, gap: 12 }}>
+                  <IconSymbol size={48} name="bell.fill" color="rgba(255,255,255,0.15)" />
+                  <ThemedText style={{ color: 'rgba(255,255,255,0.4)', fontSize: 14, fontWeight: '600' }}>
+                    No notifications yet.
+                  </ThemedText>
+                  <ThemedText style={{ color: 'rgba(255,255,255,0.25)', fontSize: 12, textAlign: 'center', paddingHorizontal: 40 }}>
+                    Enable Location Services, Push Notifications, and trigger geofence simulator stay test alerts under Profile settings to see them logged here.
+                  </ThemedText>
+                </View>
+              ) : (
+                notifHistory.map((item: any, idx: number) => {
+                  // Determine HSL styling for category
+                  const color = item.color === 'green' ? GREEN : item.color === 'yellow' ? AMBER : item.color === 'purple' ? PURPLE : BLUE;
+                  
+                  return (
+                    <View key={item.id || idx} style={s.historyCard}>
+                      <View style={{ flexDirection: 'row', gap: 12, alignItems: 'flex-start' }}>
+                        <View style={[s.historyIconCircle, { backgroundColor: color + '15' }]}>
+                          <IconSymbol size={20} name={item.icon || 'location.fill'} color={color} />
+                        </View>
+                        <View style={{ flex: 1, gap: 2 }}>
+                          <ThemedText style={s.historyPlaceName}>{item.placeName}</ThemedText>
+                          <ThemedText style={s.historyActivityDesc}>
+                            {item.inferredActivity} • {item.durationMinutes} mins
+                          </ThemedText>
+                          <ThemedText style={s.historyTimeText}>
+                            {item.timeOfDay} • {new Date(item.timestamp).toLocaleDateString()}
+                          </ThemedText>
+                        </View>
+
+                        {item.logged ? (
+                          <View style={s.loggedChip}>
+                            <ThemedText style={s.loggedChipText}>Logged ✓</ThemedText>
+                          </View>
+                        ) : (
+                          <TouchableOpacity style={s.logItemBtn} onPress={() => handleLogHistoryItem(item)}>
+                            <ThemedText style={s.logItemBtnText}>Log</ThemedText>
+                          </TouchableOpacity>
+                        )}
+                      </View>
+                    </View>
+                  );
+                })
+              )}
+            </ScrollView>
           </View>
         </View>
       )}
@@ -2099,5 +2282,71 @@ const s = StyleSheet.create({
     fontSize: 15,
     fontWeight: '700',
     color: '#FFF',
+  },
+  historyCard: {
+    backgroundColor: 'rgba(255, 255, 255, 0.03)',
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: GLASS_BORDER,
+    padding: 14,
+  },
+  historyIconCircle: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  historyPlaceName: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: '#FFF',
+  },
+  historyActivityDesc: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: 'rgba(255, 255, 255, 0.6)',
+  },
+  historyTimeText: {
+    fontSize: 11,
+    color: 'rgba(255, 255, 255, 0.35)',
+    marginTop: 2,
+  },
+  loggedChip: {
+    alignSelf: 'center',
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: 'rgba(52, 211, 153, 0.2)',
+    backgroundColor: 'rgba(52, 211, 153, 0.05)',
+  },
+  loggedChipText: {
+    color: GREEN,
+    fontSize: 11,
+    fontWeight: '700',
+  },
+  logItemBtn: {
+    alignSelf: 'center',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 12,
+    backgroundColor: PURPLE,
+  },
+  logItemBtnText: {
+    color: '#080916',
+    fontSize: 12,
+    fontWeight: '800',
+  },
+  redDotBadge: {
+    position: 'absolute',
+    top: -2,
+    right: -2,
+    width: 9,
+    height: 9,
+    borderRadius: 4.5,
+    backgroundColor: RED,
+    borderWidth: 1.5,
+    borderColor: '#080916',
   },
 });

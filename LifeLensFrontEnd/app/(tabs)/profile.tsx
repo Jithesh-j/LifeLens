@@ -253,6 +253,38 @@ export default function ProfileScreen() {
     saveSetting('location_services_enabled', 'false');
   };
 
+  const appendNotificationToHistory = async (sugg: any) => {
+    if (!user) return;
+    try {
+      const histKey = `${user.id}_notification_history`;
+      const stored = await SecureStore.getItemAsync(histKey);
+      const histArray = stored ? JSON.parse(stored) : [];
+      
+      histArray.unshift({
+        id: sugg.id,
+        title: sugg.title || 'Activity Detected',
+        message: sugg.message,
+        placeName: sugg.placeName,
+        durationMinutes: sugg.durationMinutes,
+        inferredActivity: sugg.inferredActivity,
+        category: sugg.category,
+        icon: sugg.icon,
+        color: sugg.color,
+        timeOfDay: sugg.timeOfDay,
+        date: sugg.date,
+        latitude: sugg.latitude,
+        longitude: sugg.longitude,
+        timestamp: new Date().toISOString(),
+        logged: false,
+      });
+      
+      await SecureStore.setItemAsync(histKey, JSON.stringify(histArray.slice(0, 20)));
+      console.log('🔔 [History] Appended notification stay to history center log.');
+    } catch (err) {
+      console.warn('Failed to append stay to notification history:', err);
+    }
+  };
+
   const clearSimulatedSuggestion = async () => {
     setActiveSimulation(null);
     if (user) {
@@ -413,6 +445,7 @@ export default function ProfileScreen() {
         if (user) {
           await SecureStore.setItemAsync(`${user.id}_simulated_suggestion_active`, 'true');
           await SecureStore.setItemAsync(`${user.id}_simulated_suggestion_data`, JSON.stringify(mockSuggestion));
+          await appendNotificationToHistory(mockSuggestion);
         }
 
         // Trigger real native push notification instantly on locked/background screens
@@ -472,6 +505,7 @@ export default function ProfileScreen() {
       if (user) {
         await SecureStore.setItemAsync(`${user.id}_simulated_suggestion_active`, 'true');
         await SecureStore.setItemAsync(`${user.id}_simulated_suggestion_data`, JSON.stringify(mockSuggestion));
+        await appendNotificationToHistory(mockSuggestion);
       }
 
       // Trigger real native push notification instantly on locked/background screens
