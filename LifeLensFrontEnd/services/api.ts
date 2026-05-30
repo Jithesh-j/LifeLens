@@ -329,5 +329,49 @@ export const api = {
 
     return response.json();
   },
+
+  // Get Suggestions
+  async getSuggestions(scheduleItems: any[], forceRefresh = false): Promise<SuggestionsResponse> {
+    const headers = await this.getHeaders(true);
+    const response = await fetch(`${BASE_URL}/api/insights/suggestions?refresh=${forceRefresh}`, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify({
+        schedule_items: scheduleItems.map((item) => ({
+          title: item.title || '',
+          timeRange: item.timeRange || '',
+          category: item.category || 'other',
+          date: item.date || '',
+          startTime: item.startTime || '',
+          endTime: item.endTime || '',
+          location: item.location || null,
+          weather: item.weather || null,
+        })),
+      }),
+    });
+
+    if (!response.ok) {
+      const errData = await response.json().catch(() => ({ detail: 'Failed to fetch suggestions' }));
+      throw new Error(getErrorMessage(errData, 'Failed to fetch suggestions'));
+    }
+
+    return response.json();
+  },
 };
+
+export interface SuggestionItemResponse {
+  id: string;
+  title: string;
+  recommendation: string;
+  evidence: string;
+  confidence: number;
+  category: string;
+  icon: string;
+  suggested_time: string;
+}
+
+export interface SuggestionsResponse {
+  suggestions: SuggestionItemResponse[];
+}
+
 

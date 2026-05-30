@@ -431,26 +431,38 @@ export default function ProfileScreen() {
     if (!activeSimulation) return;
     
     // Inferred category mapping based on activity entered
-    let category = 'other';
-    let icon = 'rest';
-    let color = 'gray';
+    let category: 'health' | 'work' | 'social' | 'rest' | 'other' = 'other';
+    let icon: 'walk' | 'run' | 'swim' | 'play' | 'laptop' | 'groups' | 'phone' | 'gym' | 'rest' = 'rest';
+    let color: 'green' | 'purple' | 'yellow' | 'gray' | 'orange' | 'blue' | 'red' = 'gray';
     const lower = editActivity.toLowerCase();
 
-    if (lower.includes('walk') || lower.includes('hike') || lower.includes('jog') || lower.includes('run')) {
+    if (/\b(run|jog|running|jogging)\b/i.test(lower)) {
+      category = 'health';
+      icon = 'run';
+      color = 'orange';
+    } else if (lower.includes('swim')) {
+      category = 'health';
+      icon = 'swim';
+      color = 'blue';
+    } else if (lower.includes('play') || lower.includes('sport') || lower.includes('tennis') || lower.includes('basketball') || lower.includes('soccer') || lower.includes('football') || lower.includes('cricket')) {
+      category = 'health';
+      icon = 'play';
+      color = 'yellow';
+    } else if (lower.includes('walk') || lower.includes('hike')) {
       category = 'health';
       icon = 'walk';
       color = 'green';
-    } else if (lower.includes('gym') || lower.includes('workout') || lower.includes('workout') || lower.includes('exercise')) {
+    } else if (lower.includes('gym') || lower.includes('workout') || lower.includes('exercise')) {
       category = 'health';
       icon = 'gym';
-      color = 'green';
+      color = 'red';
     } else if (lower.includes('work') || lower.includes('study') || lower.includes('code') || lower.includes('meeting')) {
       category = 'work';
       icon = 'laptop';
       color = 'purple';
-    } else if (lower.includes('cafe') || lower.includes('coffee') || lower.includes('lunch') || lower.includes('dinner')) {
+    } else if (lower.includes('cafe') || lower.includes('coffee') || lower.includes('lunch') || lower.includes('dinner') || lower.includes('brunch')) {
       category = 'social';
-      icon = 'rest';
+      icon = 'groups';
       color = 'yellow';
     }
 

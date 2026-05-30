@@ -99,6 +99,9 @@ function getSortKey(isoOrTime: string): number {
 
 const ICON_MAP: Record<string, any> = {
   walk: 'figure.walk',
+  run: 'figure.run',
+  swim: 'figure.pool.swim',
+  play: 'sportscourt.fill',
   laptop: 'laptop',
   groups: 'groups',
   phone: 'phone',
@@ -111,11 +114,15 @@ const COLOR_MAP: Record<string, string> = {
   purple: PURPLE,
   yellow: AMBER,
   gray: BLUE,
+  orange: '#FF8A65',
+  blue: BLUE,
+  red: RED,
 };
 
 const getWeatherEmoji = (condition?: string) => {
   switch (condition?.toLowerCase()) {
     case 'sunny': return '☀️';
+    case 'clear': return '🌙';
     case 'cloudy': return '🌥';
     case 'foggy': return '🌫️';
     case 'rainy': return '🌧️';
@@ -323,20 +330,29 @@ const getEndISOString = (dateStr: string, startHour: string, startMin: string, a
 
 function getLocalEventDetails(title: string): {
   category: 'health' | 'work' | 'social' | 'rest' | 'other';
-  icon: 'walk' | 'laptop' | 'groups' | 'phone' | 'gym' | 'rest';
-  color: 'green' | 'purple' | 'yellow' | 'gray';
+  icon: 'walk' | 'run' | 'swim' | 'play' | 'laptop' | 'groups' | 'phone' | 'gym' | 'rest';
+  color: 'green' | 'purple' | 'yellow' | 'gray' | 'orange' | 'blue' | 'red';
 } {
   const lower = title.toLowerCase();
-  if (lower.includes('walk') || lower.includes('run') || lower.includes('swim') || lower.includes('hike')) {
+  if (/\b(run|jog|running|jogging)\b/i.test(lower)) {
+    return { category: 'health', icon: 'run', color: 'orange' };
+  }
+  if (lower.includes('swim')) {
+    return { category: 'health', icon: 'swim', color: 'blue' };
+  }
+  if (lower.includes('play') || lower.includes('sport') || lower.includes('tennis') || lower.includes('basketball') || lower.includes('soccer') || lower.includes('football') || lower.includes('cricket')) {
+    return { category: 'health', icon: 'play', color: 'yellow' };
+  }
+  if (lower.includes('walk') || lower.includes('hike')) {
     return { category: 'health', icon: 'walk', color: 'green' };
   }
   if (lower.includes('gym') || lower.includes('workout') || lower.includes('exercise')) {
-    return { category: 'health', icon: 'gym', color: 'green' };
+    return { category: 'health', icon: 'gym', color: 'red' };
   }
   if (lower.includes('code') || lower.includes('work') || lower.includes('laptop') || lower.includes('meeting') || lower.includes('call') || lower.includes('presentation')) {
     return { category: 'work', icon: 'laptop', color: 'purple' };
   }
-  if (lower.includes('coffee') || lower.includes('social') || lower.includes('lunch') || lower.includes('dinner') || lower.includes('party')) {
+  if (lower.includes('coffee') || lower.includes('social') || lower.includes('lunch') || lower.includes('dinner') || lower.includes('party') || lower.includes('brunch')) {
     return { category: 'social', icon: 'groups', color: 'yellow' };
   }
   return { category: 'rest', icon: 'rest', color: 'gray' };
@@ -410,8 +426,11 @@ export default function HomeScreen() {
       const code = weather.weathercode;
 
       // Map weathercode to emoji
+      const curHour = new Date().getHours();
+      const isNight = curHour < 6 || curHour >= 18;
+
       let emoji = '🌡️';
-      if (code === 0) emoji = '☀️';
+      if (code === 0) emoji = isNight ? '🌙' : '☀️';
       else if (code >= 1 && code <= 3) emoji = '⛅';
       else if (code === 45 || code === 48) emoji = '🌫️';
       else if ((code >= 51 && code <= 57) || (code >= 61 && code <= 67) || (code >= 80 && code <= 82)) emoji = '🌧️';
@@ -578,26 +597,38 @@ export default function HomeScreen() {
   const handleSaveLocEdit = async () => {
     if (!pendingLocationSugg) return;
     
-    let category = 'other';
-    let icon = 'rest';
-    let color = 'gray';
+    let category: 'health' | 'work' | 'social' | 'rest' | 'other' = 'other';
+    let icon: 'walk' | 'run' | 'swim' | 'play' | 'laptop' | 'groups' | 'phone' | 'gym' | 'rest' = 'rest';
+    let color: 'green' | 'purple' | 'yellow' | 'gray' | 'orange' | 'blue' | 'red' = 'gray';
     const lower = locEditActivity.toLowerCase();
 
-    if (lower.includes('walk') || lower.includes('hike') || lower.includes('jog') || lower.includes('run')) {
+    if (/\b(run|jog|running|jogging)\b/i.test(lower)) {
+      category = 'health';
+      icon = 'run';
+      color = 'orange';
+    } else if (lower.includes('swim')) {
+      category = 'health';
+      icon = 'swim';
+      color = 'blue';
+    } else if (lower.includes('play') || lower.includes('sport') || lower.includes('tennis') || lower.includes('basketball') || lower.includes('soccer') || lower.includes('football') || lower.includes('cricket')) {
+      category = 'health';
+      icon = 'play';
+      color = 'yellow';
+    } else if (lower.includes('walk') || lower.includes('hike')) {
       category = 'health';
       icon = 'walk';
       color = 'green';
     } else if (lower.includes('gym') || lower.includes('workout') || lower.includes('exercise')) {
       category = 'health';
       icon = 'gym';
-      color = 'green';
+      color = 'red';
     } else if (lower.includes('work') || lower.includes('study') || lower.includes('code') || lower.includes('meeting')) {
       category = 'work';
       icon = 'laptop';
       color = 'purple';
-    } else if (lower.includes('cafe') || lower.includes('coffee') || lower.includes('lunch') || lower.includes('dinner')) {
+    } else if (lower.includes('cafe') || lower.includes('coffee') || lower.includes('lunch') || lower.includes('dinner') || lower.includes('brunch')) {
       category = 'social';
-      icon = 'rest';
+      icon = 'groups';
       color = 'yellow';
     }
 

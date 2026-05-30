@@ -11,6 +11,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 const getWeatherEmoji = (condition?: string) => {
   switch (condition?.toLowerCase()) {
     case 'sunny': return '☀️';
+    case 'clear': return '🌙';
     case 'cloudy': return '🌥';
     case 'foggy': return '🌫️';
     case 'rainy': return '🌧️';
@@ -207,6 +208,12 @@ export default function CalendarScreen() {
         return { bg: 'rgba(143, 102, 255, 0.08)', border: '#8F66FF', text: '#C4A8FF' };
       case 'yellow':
         return { bg: 'rgba(245, 158, 11, 0.08)', border: '#F59E0B', text: '#F59E0B' };
+      case 'orange':
+        return { bg: 'rgba(255, 138, 101, 0.08)', border: '#FF8A65', text: '#FF8A65' };
+      case 'blue':
+        return { bg: 'rgba(59, 130, 246, 0.08)', border: '#3B82F6', text: '#93C5FD' };
+      case 'red':
+        return { bg: 'rgba(239, 68, 68, 0.08)', border: '#EF4444', text: '#EF4444' };
       default:
         return { bg: 'rgba(59, 130, 246, 0.08)', border: '#3B82F6', text: '#93C5FD' };
     }
@@ -313,9 +320,13 @@ export default function CalendarScreen() {
                             </ThemedText>
                           </View>
                         )}
-                        {event.weather && (
+                        {event.weather ? (
                           <ThemedText style={{ fontSize: 12, color: theme.text + '80', marginTop: 4, fontWeight: '500' }}>
                             {getWeatherEmoji(event.weather.condition)} {event.weather.condition} • {Math.round(event.weather.temperature_c)}°C / {Math.round(event.weather.temperature_f)}°F
+                          </ThemedText>
+                        ) : (
+                          <ThemedText style={{ fontSize: 11, color: '#8E8E9380', marginTop: 4, fontWeight: '500', fontStyle: 'italic' }}>
+                            🌡️ Weather Unavailable
                           </ThemedText>
                         )}
                       </View>
@@ -461,9 +472,13 @@ export default function CalendarScreen() {
                                   </ThemedText>
                                 </View>
                               )}
-                              {event.weather && (
+                              {event.weather ? (
                                 <ThemedText style={{ fontSize: 12, color: theme.text + '80', marginTop: 4, fontWeight: '500' }}>
                                   {getWeatherEmoji(event.weather.condition)} {event.weather.condition} • {Math.round(event.weather.temperature_c)}°C / {Math.round(event.weather.temperature_f)}°F
+                                </ThemedText>
+                              ) : (
+                                <ThemedText style={{ fontSize: 11, color: '#8E8E9380', marginTop: 4, fontWeight: '500', fontStyle: 'italic' }}>
+                                  🌡️ Weather Unavailable
                                 </ThemedText>
                               )}
                             </View>

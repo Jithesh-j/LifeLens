@@ -10,8 +10,8 @@ export interface ScheduleItem {
   timeRange: string;
   duration?: string;
   category: 'health' | 'work' | 'social' | 'rest' | 'other';
-  icon: 'walk' | 'laptop' | 'groups' | 'phone' | 'gym' | 'rest';
-  color: 'green' | 'purple' | 'yellow' | 'gray';
+  icon: 'walk' | 'run' | 'swim' | 'play' | 'laptop' | 'groups' | 'phone' | 'gym' | 'rest';
+  color: 'green' | 'purple' | 'yellow' | 'gray' | 'orange' | 'blue' | 'red';
   isSuggested?: boolean;
   isApproved?: boolean;
   date: string; // YYYY-MM-DD
@@ -205,8 +205,8 @@ export function parseNotesToEvents(text: string, dateStr = getTodayDateStr()): S
     // 1. Identify Activity Title, Category, Icon, Color, Default Duration
     let title = '';
     let category: 'health' | 'work' | 'social' | 'rest' | 'other' = 'other';
-    let icon: 'walk' | 'laptop' | 'groups' | 'phone' | 'gym' | 'rest' = 'rest';
-    let color: 'green' | 'purple' | 'yellow' | 'gray' = 'gray';
+    let icon: 'walk' | 'run' | 'swim' | 'play' | 'laptop' | 'groups' | 'phone' | 'gym' | 'rest' = 'rest';
+    let color: 'green' | 'purple' | 'yellow' | 'gray' | 'orange' | 'blue' | 'red' = 'gray';
     let defaultDurationMinutes = 60;
     let confidence = 0.98;
 
@@ -226,26 +226,38 @@ export function parseNotesToEvents(text: string, dateStr = getTodayDateStr()): S
       title = 'Gym Session';
       category = 'health';
       icon = 'gym';
-      color = 'green';
+      color = 'red';
       defaultDurationMinutes = 60;
-    } else if (lower.includes('run') || lower.includes('running')) {
+    } else if (/\b(run|running|jog|jogging)\b/i.test(lower)) {
       title = 'Running';
       category = 'health';
-      icon = 'walk';
-      color = 'green';
+      icon = 'run';
+      color = 'orange';
       defaultDurationMinutes = 30;
     } else if (lower.includes('swim') || lower.includes('swimming')) {
       title = 'Swimming';
       category = 'health';
-      icon = 'gym';
-      color = 'green';
+      icon = 'swim';
+      color = 'blue';
       defaultDurationMinutes = 45;
+    } else if (lower.includes('play') || lower.includes('sport') || lower.includes('tennis') || lower.includes('basketball') || lower.includes('soccer') || lower.includes('football') || lower.includes('cricket')) {
+      title = 'Play';
+      category = 'health';
+      icon = 'play';
+      color = 'yellow';
+      defaultDurationMinutes = 60;
     } else if (lower.includes('hike') || lower.includes('hiking')) {
       title = 'Hiking';
       category = 'health';
       icon = 'walk';
       color = 'green';
       defaultDurationMinutes = 120;
+    } else if (lower.includes('brunch')) {
+      title = 'Brunch';
+      category = 'social';
+      icon = 'rest';
+      color = 'yellow';
+      defaultDurationMinutes = 45;
     } else if (lower.includes('coffee') || lower.includes('cafe') || lower.includes('tea')) {
       title = 'Coffee';
       category = 'social';
@@ -649,14 +661,18 @@ export function ScheduleProvider({ children }: { children: React.ReactNode }) {
 
     try {
       const settings = await api.getUserSettings();
-      if (settings.weather_on_timeline) {
-        console.log('🌤️ [Schedule Weather] Weather Enrichment enabled. Fetching device coords as fallback...');
+      if (settings.location_enabled && settings.weather_on_timeline) {
+        console.log('🌤️ [Schedule Weather] Location & Weather Enrichment enabled. Fetching device coords...');
         
         let fallbackLat: number | undefined = undefined;
         let fallbackLon: number | undefined = undefined;
 
         try {
-          const { status } = await Location.getForegroundPermissionsAsync();
+          let { status } = await Location.getForegroundPermissionsAsync();
+          if (status !== 'granted') {
+            const req = await Location.requestForegroundPermissionsAsync();
+            status = req.status;
+          }
           if (status === 'granted') {
             const lastKnown = await Location.getLastKnownPositionAsync({});
             if (lastKnown) {
@@ -714,32 +730,37 @@ export function ScheduleProvider({ children }: { children: React.ReactNode }) {
                 if (weather.status === 'ok' && weather.temperature_c !== undefined && weather.temperature_f !== undefined && weather.weathercode !== undefined) {
                   let condition = 'Clear';
                   const code = weather.weathercode;
-                  if (code === 0) condition = 'Sunny';
-                  else if (code >= 1 && code <= 3) condition = 'Cloudy';
-                  else if (code === 45 || code === 48) condition = 'Foggy';
-                  else if ((code >= 51 && code <= 57) || (code >= 61 && code <= 67) || (code >= 80 && code <= 82)) condition = 'Rainy';
-                  else if ((code >= 71 && code <= 77) || (code >= 85 && code <= 86)) condition = 'Snowy';
-                  else if (code >= 95 && code <= 99) condition = 'Stormy';
+                  
+                  // Determine day/night based on the event time (6 AM to 6 PM is day)
+                  let isNight = false;
+                  try {
+                    const timePart = eventTime.split('T')[1];
+                    if (timePart) {
+                      const h = parseInt(timePart.split(':')[0]);
+                      if (h < 6 || h >= 18) {
+                        isNight = true;
+                      }
+                    }
+                  } catch (e) {
+                    console.warn('Failed to parse event hour for weather day/night check:', e);
+                  }
+
+                  if (code === 0) {
+                    condition = isNight ? 'Clear' : 'Sunny';
+                  } else if (code >= 1 && code <= 3) {
+                    condition = 'Cloudy';
+                  } else if (code === 45 || code === 48) {
+                    condition = 'Foggy';
+                  } else if ((code >= 51 && code <= 57) || (code >= 61 && code <= 67) || (code >= 80 && code <= 82)) {
+                    condition = 'Rainy';
+                  } else if ((code >= 71 && code <= 77) || (code >= 85 && code <= 86)) {
+                    condition = 'Snowy';
+                  } else if (code >= 95 && code <= 99) {
+                    condition = 'Stormy';
+                  }
 
                   let resolvedName = ev.location?.name;
-                  if (!resolvedName || resolvedName === 'Local Spot') {
-                    const titleLower = ev.title.toLowerCase();
-                    if (titleLower.includes('coffee') || titleLower.includes('cafe') || titleLower.includes('tea')) {
-                      resolvedName = 'Nearby Cafe';
-                    } else if (titleLower.includes('walk') || titleLower.includes('run') || titleLower.includes('hike') || titleLower.includes('jog')) {
-                      resolvedName = 'Scenic Park / Trail';
-                    } else if (titleLower.includes('gym') || titleLower.includes('workout') || titleLower.includes('exercise')) {
-                      resolvedName = 'Fitness Center';
-                    } else if (titleLower.includes('swim')) {
-                      resolvedName = 'Aquatic Center';
-                    } else if (titleLower.includes('lunch') || titleLower.includes('dinner') || titleLower.includes('bistro') || titleLower.includes('restaurant')) {
-                      resolvedName = 'Nearby Bistro';
-                    } else if (titleLower.includes('work') || titleLower.includes('coding') || titleLower.includes('meeting') || titleLower.includes('call')) {
-                      resolvedName = 'Office Workspace';
-                    } else {
-                      resolvedName = 'Local Spot';
-                    }
-
+                  if (!resolvedName) {
                     try {
                       const geoAddress = await Location.reverseGeocodeAsync({ latitude: lat, longitude: lon });
                       if (geoAddress && geoAddress.length > 0) {
@@ -759,11 +780,11 @@ export function ScheduleProvider({ children }: { children: React.ReactNode }) {
 
                   return {
                     ...ev,
-                    location: {
+                    location: resolvedName ? {
                       name: resolvedName,
                       latitude: lat,
                       longitude: lon,
-                    },
+                    } : undefined,
                     weather: {
                       temperature_c: weather.temperature_c,
                       temperature_f: weather.temperature_f,

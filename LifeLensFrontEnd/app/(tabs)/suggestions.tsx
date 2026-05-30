@@ -14,6 +14,7 @@ import { ThemedText } from '@/components/themed-text';
 import { useThemeColor } from '@/hooks/use-theme-color';
 import { IconSymbol } from '@/components/ui/icon-symbol';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { api } from '@/services/api';
 
 const SCREEN_WIDTH = Dimensions.get('window').width;
 
@@ -679,8 +680,68 @@ function PatternsTab({ data, cardBg }: { data: AnalyticsData; cardBg: string }) 
 //  TAB: SUGGESTIONS
 // ═══════════════════════════════════════════════════════════════════════════════
 
-function SuggestionsTab({ data, cardBg }: { data: AnalyticsData; cardBg: string }) {
+// getCategoryColor and getCategoryBg map backend category string to frontend colors dynamically
+const getCategoryColor = (category?: string) => {
+  const cat = (category || 'other').toLowerCase();
+  if (cat === 'health') return GREEN;
+  if (cat === 'work') return PURPLE;
+  if (cat === 'social') return AMBER;
+  if (cat === 'rest') return BLUE;
+  return '#94A3B8';
+};
+
+const getCategoryBg = (category?: string) => {
+  const cat = (category || 'other').toLowerCase();
+  if (cat === 'health') return 'rgba(52, 211, 153, 0.08)';
+  if (cat === 'work') return 'rgba(143, 102, 255, 0.08)';
+  if (cat === 'social') return 'rgba(245, 158, 11, 0.08)';
+  if (cat === 'rest') return 'rgba(59, 130, 246, 0.08)';
+  return 'rgba(148, 163, 184, 0.08)';
+};
+
+function SuggestionsTab({
+  suggestions,
+  loading,
+  onRefresh,
+  totalActivities,
+  cardBg,
+}: {
+  suggestions: any[];
+  loading: boolean;
+  onRefresh: () => void;
+  totalActivities: number;
+  cardBg: string;
+}) {
   const [expandedId, setExpandedId] = useState<string | null>(null);
+
+  if (loading) {
+    return (
+      <View style={{ gap: 16 }}>
+        <FadeSlide index={0}>
+          <View style={s.suggestionsHeader}>
+            <View style={[s.suggestionsHeaderIcon, { backgroundColor: PURPLE + '12' }]}>
+              <IconSymbol size={22} name="sparkles" color={PURPLE} />
+            </View>
+            <View style={{ flex: 1 }}>
+              <ThemedText style={s.suggestionsHeaderTitle}>AI Coach is analyzing...</ThemedText>
+              <ThemedText style={s.suggestionsHeaderSub}>Decrypting behavioral correlations</ThemedText>
+            </View>
+          </View>
+        </FadeSlide>
+        {[1, 2, 3].map((x) => (
+          <View key={x} style={[s.suggestionCard, { backgroundColor: cardBg, opacity: 0.5, borderLeftWidth: 4, borderLeftColor: '#8F66FF30' }]}>
+            <View style={{ flexDirection: 'row', gap: 14 }}>
+              <View style={{ width: 44, height: 44, borderRadius: 14, backgroundColor: '#8E8E9320' }} />
+              <View style={{ flex: 1, gap: 8 }}>
+                <View style={{ height: 16, backgroundColor: '#8E8E9320', borderRadius: 4, width: '80%' }} />
+                <View style={{ height: 12, backgroundColor: '#8E8E9315', borderRadius: 4, width: '40%' }} />
+              </View>
+            </View>
+          </View>
+        ))}
+      </View>
+    );
+  }
 
   return (
     <>
@@ -690,67 +751,126 @@ function SuggestionsTab({ data, cardBg }: { data: AnalyticsData; cardBg: string 
             <IconSymbol size={22} name="sparkles" color={PURPLE} />
           </View>
           <View style={{ flex: 1 }}>
-            <ThemedText style={s.suggestionsHeaderTitle}>AI-Powered Recommendations</ThemedText>
+            <ThemedText style={s.suggestionsHeaderTitle}>AuraJournal AI Coach</ThemedText>
             <ThemedText style={s.suggestionsHeaderSub}>
-              Based on {data.totalActivities} logged activities
+              Based on {totalActivities} timeline logs & historical insights
             </ThemedText>
           </View>
+          <TouchableOpacity
+            onPress={onRefresh}
+            activeOpacity={0.7}
+            style={{
+              paddingHorizontal: 12,
+              paddingVertical: 8,
+              borderRadius: 12,
+              backgroundColor: PURPLE + '18',
+              flexDirection: 'row',
+              alignItems: 'center',
+              gap: 6,
+            }}>
+            <IconSymbol size={13} name="sparkles" color={PURPLE} />
+            <ThemedText style={{ fontSize: 11, fontWeight: '700', color: PURPLE }}>Refresh</ThemedText>
+          </TouchableOpacity>
         </View>
       </FadeSlide>
 
-      {data.suggestions.map((sug, idx) => (
-        <FadeSlide key={sug.id} index={idx + 1}>
-          <TouchableOpacity
-            activeOpacity={0.8}
-            onPress={() => setExpandedId(expandedId === sug.id ? null : sug.id)}
-            style={[
-              s.suggestionCard,
-              {
-                backgroundColor: cardBg,
-                borderLeftWidth: 4,
-                borderLeftColor: sug.color,
-                borderColor: 'rgba(255,255,255,0.06)',
-                shadowColor: sug.color,
-                shadowOffset: { width: 0, height: 6 },
-                shadowOpacity: 0.12,
-                shadowRadius: 12,
-                elevation: 3,
-              }
-            ]}>
-            <View style={s.suggCardTop}>
-              <View style={[s.suggIcon, { backgroundColor: sug.bg }]}>
-                <IconSymbol size={20} name={sug.icon} color={sug.color} />
-              </View>
-              <View style={{ flex: 1 }}>
-                <ThemedText style={[s.suggText, { color: '#FFF' }]}>{sug.text}</ThemedText>
-                <View style={s.suggMeta}>
-                  <View style={[s.suggTimeBadge, { backgroundColor: sug.bg }]}>
-                    <IconSymbol size={10} name="clock.fill" color={sug.color} style={{ marginRight: 4 }} />
-                    <ThemedText style={[s.suggTimeText, { color: sug.color }]}>{sug.time}</ThemedText>
-                  </View>
-                  <View style={[s.suggAiBadge, { backgroundColor: PURPLE + '12' }]}>
-                    <IconSymbol size={10} name="sparkles" color={PURPLE} style={{ marginRight: 3 }} />
-                    <ThemedText style={{ fontSize: 10, fontWeight: '700', color: PURPLE }}>AI</ThemedText>
-                  </View>
-                </View>
-              </View>
-              <IconSymbol
-                size={14}
-                name={expandedId === sug.id ? 'minus.circle.fill' : 'chevron.right'}
-                color={sug.color + '80'}
-              />
-            </View>
-
-            {expandedId === sug.id && (
-              <View style={s.suggExpanded}>
-                <View style={[s.suggDivider, { backgroundColor: sug.color + '15' }]} />
-                <ThemedText style={s.suggExpandLabel}>WHY THIS MATTERS</ThemedText>
-                <ThemedText style={s.suggExpandValue}>{sug.reason}</ThemedText>
-              </View>
-            )}
-          </TouchableOpacity>
+      {suggestions.length === 0 ? (
+        <FadeSlide index={1}>
+          <View style={[s.suggestionCard, { backgroundColor: cardBg, alignItems: 'center', paddingVertical: 40, gap: 12 }]}>
+            <IconSymbol size={36} name="sparkles" color={PURPLE} />
+            <ThemedText style={{ fontSize: 16, fontWeight: '700', color: '#FFF' }}>No Suggestions Yet</ThemedText>
+            <ThemedText style={{ fontSize: 13, opacity: 0.5, textAlign: 'center', paddingHorizontal: 20 }}>
+              Start logging your activities, workouts, work sessions, or voice recordings, and AuraJournal will dynamically analyze your behaviors.
+            </ThemedText>
+            <TouchableOpacity
+              onPress={onRefresh}
+              style={{
+                marginTop: 8,
+                paddingHorizontal: 16,
+                paddingVertical: 10,
+                borderRadius: 14,
+                backgroundColor: PURPLE,
+              }}>
+              <ThemedText style={{ color: '#fff', fontSize: 13, fontWeight: '700' }}>Generate Suggestions</ThemedText>
+            </TouchableOpacity>
+          </View>
         </FadeSlide>
-      ))}
+      ) : (
+        suggestions.map((sug, idx) => {
+          const color = getCategoryColor(sug.category);
+          const bg = getCategoryBg(sug.category);
+          return (
+            <FadeSlide key={sug.id || `sug_${idx}`} index={idx + 1}>
+              <TouchableOpacity
+                activeOpacity={0.8}
+                onPress={() => setExpandedId(expandedId === sug.id ? null : sug.id)}
+                style={[
+                  s.suggestionCard,
+                  {
+                    backgroundColor: cardBg,
+                    borderLeftWidth: 4,
+                    borderLeftColor: color,
+                    borderColor: 'rgba(255,255,255,0.06)',
+                    shadowColor: color,
+                    shadowOffset: { width: 0, height: 6 },
+                    shadowOpacity: 0.12,
+                    shadowRadius: 12,
+                    elevation: 3,
+                  }
+                ]}>
+                <View style={s.suggCardTop}>
+                  <View style={[s.suggIcon, { backgroundColor: bg }]}>
+                    <IconSymbol size={20} name={sug.icon || 'sparkles'} color={color} />
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <ThemedText style={[s.suggText, { color: '#FFF', fontSize: 15, fontWeight: '800' }]}>
+                      {sug.title}
+                    </ThemedText>
+                    
+                    <View style={s.suggMeta}>
+                      <View style={[s.suggTimeBadge, { backgroundColor: bg }]}>
+                        <IconSymbol size={10} name="clock.fill" color={color} style={{ marginRight: 4 }} />
+                        <ThemedText style={[s.suggTimeText, { color: color }]}>{sug.suggested_time || 'Daily'}</ThemedText>
+                      </View>
+                      
+                      {/* Confidence Score Badge */}
+                      <View style={[s.suggAiBadge, { backgroundColor: PURPLE + '12' }]}>
+                        <IconSymbol size={10} name="sparkles" color={PURPLE} style={{ marginRight: 3 }} />
+                        <ThemedText style={{ fontSize: 10, fontWeight: '700', color: PURPLE }}>
+                          {sug.confidence}% Match
+                        </ThemedText>
+                      </View>
+                    </View>
+                  </View>
+                  <IconSymbol
+                    size={14}
+                    name={expandedId === sug.id ? 'minus.circle.fill' : 'chevron.right'}
+                    color={color + '80'}
+                  />
+                </View>
+
+                {expandedId === sug.id && (
+                  <View style={s.suggExpanded}>
+                    <View style={[s.suggDivider, { backgroundColor: color + '15' }]} />
+                    
+                    <ThemedText style={s.suggExpandLabel}>ACTIONABLE RECOMMENDATION</ThemedText>
+                    <ThemedText style={[s.suggExpandValue, { color: '#FFF', marginBottom: 12, fontSize: 13.5, fontWeight: '600' }]}>
+                      {sug.recommendation}
+                    </ThemedText>
+                    
+                    <ThemedText style={s.suggExpandLabel}>SUPPORTING EVIDENCE</ThemedText>
+                    <View style={{ backgroundColor: 'rgba(255, 255, 255, 0.03)', padding: 10, borderRadius: 10, borderWidth: 1, borderColor: 'rgba(255, 255, 255, 0.05)' }}>
+                      <ThemedText style={[s.suggExpandValue, { fontStyle: 'italic', fontSize: 12.5 }]}>
+                        "{sug.evidence}"
+                      </ThemedText>
+                    </View>
+                  </View>
+                )}
+              </TouchableOpacity>
+            </FadeSlide>
+          );
+        })
+      )}
     </>
   );
 }
@@ -871,6 +991,9 @@ export default function InsightsScreen() {
   const insets = useSafeAreaInsets();
   const [activeTab, setActiveTab] = useState<TabKey>('patterns');
 
+  const [backendSuggestions, setBackendSuggestions] = useState<any[]>([]);
+  const [suggestionsLoading, setSuggestionsLoading] = useState<boolean>(false);
+
   const cardBg = useThemeColor({ light: '#F7F7FA', dark: '#1C1C1E' }, 'background');
   const data = useMemo(() => analyzeSchedule(scheduleItems), [scheduleItems]);
 
@@ -879,6 +1002,26 @@ export default function InsightsScreen() {
     { key: 'suggestions', label: 'Suggestions', icon: 'lightbulb.fill' },
     { key: 'trends', label: 'Trends', icon: 'chart.line.uptrend.xyaxis' },
   ];
+
+  const fetchBackendSuggestions = async (force = false) => {
+    try {
+      setSuggestionsLoading(true);
+      const res = await api.getSuggestions(scheduleItems, force);
+      if (res && res.suggestions) {
+        setBackendSuggestions(res.suggestions);
+      }
+    } catch (err) {
+      console.warn('Failed to load backend suggestions:', err);
+    } finally {
+      setSuggestionsLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (activeTab === 'suggestions' && backendSuggestions.length === 0) {
+      fetchBackendSuggestions(false);
+    }
+  }, [activeTab, scheduleItems]);
 
   return (
     <View style={s.container}>
@@ -933,7 +1076,15 @@ export default function InsightsScreen() {
         contentContainerStyle={s.scrollContent}
         showsVerticalScrollIndicator={false}>
         {activeTab === 'patterns' && <PatternsTab data={data} cardBg={cardBg} />}
-        {activeTab === 'suggestions' && <SuggestionsTab data={data} cardBg={cardBg} />}
+        {activeTab === 'suggestions' && (
+          <SuggestionsTab
+            suggestions={backendSuggestions}
+            loading={suggestionsLoading}
+            onRefresh={() => fetchBackendSuggestions(true)}
+            totalActivities={data.totalActivities}
+            cardBg={cardBg}
+          />
+        )}
         {activeTab === 'trends' && <TrendsTab data={data} cardBg={cardBg} />}
 
         {/* Footer */}
