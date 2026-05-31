@@ -37,5 +37,16 @@ class Settings(BaseSettings):
     DEBUG: bool = True
     CORS_ORIGINS: list[str] = ["*"]
 
+    # ── Email Delivery ────────────────────────────────────────
+    EMAIL_PROVIDER: str = "smtp"  # smtp, resend, sendgrid, postmark
+    EMAIL_FROM: str = "verify@aurajournal.com"
+    SMTP_HOST: str | None = None
+    SMTP_PORT: int = 587
+    SMTP_USERNAME: str | None = None
+    SMTP_PASSWORD: str | None = None
+    RESEND_API_KEY: str | None = None
+    SENDGRID_API_KEY: str | None = None
+    POSTMARK_API_TOKEN: str | None = None
+
 
 settings = Settings()

@@ -9,6 +9,8 @@ interface AuthContextType {
   isLoading: boolean;
   login: (email: string, password: string) => Promise<void>;
   register: (username: string, email: string, password: string) => Promise<void>;
+  verifyOTP: (email: string, code: string) => Promise<void>;
+  resendOTP: (email: string) => Promise<void>;
   logout: () => Promise<void>;
 }
 
@@ -48,15 +50,31 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     if (isLoading) return;
 
     const inAuthGroup = segments[0] === '(auth)';
+    const isVerifyScreen = segments[1] === 'verify-email';
 
-    if (!token && !inAuthGroup) {
-      // Redirect to login
-      router.replace('/(auth)/login');
-    } else if (token && inAuthGroup) {
-      // Redirect to home screen
-      router.replace('/(tabs)');
+    if (!token) {
+      if (!inAuthGroup) {
+        // Redirect to login
+        router.replace('/(auth)/login');
+      }
+    } else {
+      // Token exists
+      if (user && !user.email_verified) {
+        // User exists but email is not verified! Redirect to OTP screen.
+        if (!isVerifyScreen) {
+          router.replace({
+            pathname: '/(auth)/verify-email',
+            params: { email: user.email },
+          });
+        }
+      } else {
+        // Verified or Google user: Redirect to home if in auth group
+        if (inAuthGroup) {
+          router.replace('/(tabs)');
+        }
+      }
     }
-  }, [token, segments, isLoading]);
+  }, [token, user, segments, isLoading]);
 
   const login = async (email: string, password: string) => {
     setIsLoading(true);
@@ -92,6 +110,31 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
+  const verifyOTP = async (email: string, code: string) => {
+    setIsLoading(true);
+    try {
+      const res = await api.verifyEmail(email, code);
+      await SecureStore.setItemAsync('user_token', res.access_token);
+      setToken(res.access_token);
+
+      const profile = await api.getMe();
+      setUser(profile);
+    } catch (e) {
+      setIsLoading(false);
+      throw e;
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const resendOTP = async (email: string) => {
+    try {
+      await api.resendCode(email);
+    } catch (e) {
+      throw e;
+    }
+  };
+
   const logout = async () => {
     setIsLoading(true);
     try {
@@ -106,7 +149,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   return (
-    <AuthContext.Provider value={{ user, token, isLoading, login, register, logout }}>
+    <AuthContext.Provider value={{ user, token, isLoading, login, register, verifyOTP, resendOTP, logout }}>
       {children}
     </AuthContext.Provider>
   );

@@ -34,6 +34,7 @@ export interface UserResponse {
   id: string;
   full_name: string;
   email: string;
+  email_verified: boolean;
   created_at: string;
 }
 
@@ -132,6 +133,38 @@ export const api = {
     if (!response.ok) {
       const errData = await response.json().catch(() => ({ detail: 'Invalid credentials' }));
       throw new Error(getErrorMessage(errData, 'Invalid credentials'));
+    }
+
+    return response.json();
+  },
+
+  // Auth: Verify Email
+  async verifyEmail(email: string, code: string): Promise<any> {
+    const response = await fetch(`${BASE_URL}/api/auth/verify`, {
+      method: 'POST',
+      headers: await this.getHeaders(false),
+      body: JSON.stringify({ email, code }),
+    });
+
+    if (!response.ok) {
+      const errData = await response.json().catch(() => ({ detail: 'Verification failed' }));
+      throw new Error(getErrorMessage(errData, 'Verification failed'));
+    }
+
+    return response.json();
+  },
+
+  // Auth: Resend Code
+  async resendCode(email: string): Promise<any> {
+    const response = await fetch(`${BASE_URL}/api/auth/resend-code`, {
+      method: 'POST',
+      headers: await this.getHeaders(false),
+      body: JSON.stringify({ email }),
+    });
+
+    if (!response.ok) {
+      const errData = await response.json().catch(() => ({ detail: 'Resend failed' }));
+      throw new Error(getErrorMessage(errData, 'Resend failed'));
     }
 
     return response.json();

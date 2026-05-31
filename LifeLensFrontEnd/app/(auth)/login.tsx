@@ -10,7 +10,7 @@ import {
   TouchableWithoutFeedback,
   Keyboard,
 } from 'react-native';
-import { Link } from 'expo-router';
+import { Link, useRouter } from 'expo-router';
 import { useAuth } from '@/context/auth';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
@@ -23,7 +23,9 @@ export default function LoginScreen() {
   const [secureText, setSecureText] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
-  const { login } = useAuth();
+  const [resending, setResending] = useState(false);
+  const { login, resendOTP } = useAuth();
+  const router = useRouter();
 
   const primaryColor = '#7C4DFF'; // Luxury vibrant violet
   const tintColor = useThemeColor({}, 'tint');
@@ -46,6 +48,20 @@ export default function LoginScreen() {
     }
   };
 
+  const handleResend = async () => {
+    if (!email) return;
+    setResending(true);
+    setError(null);
+    try {
+      await resendOTP(email.trim().toLowerCase());
+      setError('A new verification code has been sent successfully!');
+    } catch (err: any) {
+      setError(err.message || 'Failed to resend code');
+    } finally {
+      setResending(false);
+    }
+  };
+
   return (
     <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
       <ThemedView style={styles.container}>
@@ -64,9 +80,30 @@ export default function LoginScreen() {
             <ThemedText style={styles.formTitle}>Welcome back</ThemedText>
 
             {error && (
-              <View style={styles.errorAlert}>
-                <IconSymbol size={18} name="exclamationmark.circle.fill" color="#FF5252" />
-                <ThemedText style={styles.errorText}>{error}</ThemedText>
+              <View style={styles.errorAlertContainer}>
+                <View style={styles.errorAlert}>
+                  <IconSymbol size={18} name="exclamationmark.circle.fill" color="#FF5252" />
+                  <ThemedText style={styles.errorText}>{error}</ThemedText>
+                </View>
+                {error.includes("verify") && (
+                  <View style={styles.errorActions}>
+                    <TouchableOpacity
+                      style={styles.errorActionBtn}
+                      onPress={() => router.replace({ pathname: '/(auth)/verify-email', params: { email: email.trim().toLowerCase() } })}>
+                      <ThemedText style={styles.errorActionBtnText}>Verify Email</ThemedText>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      style={styles.errorActionBtn}
+                      onPress={handleResend}
+                      disabled={resending}>
+                      {resending ? (
+                        <ActivityIndicator size="small" color={primaryColor} />
+                      ) : (
+                        <ThemedText style={styles.errorActionBtnText}>Resend Code</ThemedText>
+                      )}
+                    </TouchableOpacity>
+                  </View>
+                )}
               </View>
             )}
 
@@ -244,6 +281,32 @@ const styles = StyleSheet.create({
   },
   registerLink: {
     fontSize: 14,
+    fontWeight: '700',
+  },
+  errorAlertContainer: {
+    backgroundColor: '#FF525215',
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#FF525230',
+    overflow: 'hidden',
+  },
+  errorActions: {
+    flexDirection: 'row',
+    borderTopWidth: 1,
+    borderTopColor: '#FF525220',
+    backgroundColor: '#FF525208',
+  },
+  errorActionBtn: {
+    flex: 1,
+    height: 40,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderRightWidth: 0.5,
+    borderRightColor: '#FF525220',
+  },
+  errorActionBtnText: {
+    color: '#FF5252',
+    fontSize: 13,
     fontWeight: '700',
   },
 });
