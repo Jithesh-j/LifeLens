@@ -20,7 +20,8 @@ import { useThemeColor } from '@/hooks/use-theme-color';
 import { IconSymbol } from '@/components/ui/icon-symbol';
 import { api } from '@/services/api';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { scheduleActivityNotification, registerForPushNotificationsAsync } from '@/services/notifications';
+import { scheduleActivityNotification, registerForPushNotificationsAsync, appendNotificationToHistory } from '@/services/notifications';
+import { startBackgroundLocation, stopBackgroundLocation } from '@/services/background-location';
 
 const SCREEN_HEIGHT = Dimensions.get('window').height;
 
@@ -121,6 +122,7 @@ export default function ProfileScreen() {
 
   // Settings States (stored in SecureStore)
   const [locationEnabled, setLocationEnabled] = useState(false);
+  const [alwaysAllowEnabled, setAlwaysAllowEnabled] = useState(false);
   const [smartDetectionEnabled, setSmartDetectionEnabled] = useState(false);
   const [notificationsEnabled, setNotificationsEnabled] = useState(false);
   const [weatherOnTimeline, setWeatherOnTimeline] = useState(false);
@@ -163,8 +165,24 @@ export default function ProfileScreen() {
         setWeatherOnTimeline(settings.weather_on_timeline || false);
         setFrequency(settings.notification_frequency as any);
 
+        // Keep local SecureStore in sync for the headless TaskManager background updates
+        await SecureStore.setItemAsync(`${user.id}_location_enabled`, String(settings.location_enabled));
+        await SecureStore.setItemAsync(`${user.id}_smart_detection_enabled`, String(settings.smart_activity_detection));
+        await SecureStore.setItemAsync(`${user.id}_notifications_enabled`, String(settings.smart_notifications));
+
+        const alwaysAllowVal = await SecureStore.getItemAsync(`${user.id}_location_always_allow`);
+        const alwaysAllow = alwaysAllowVal === 'true';
+        setAlwaysAllowEnabled(alwaysAllow);
+
         const dailySummaryVal = await SecureStore.getItemAsync(`${user.id}_daily_summary_enabled`);
         setDailySummaryEnabled(dailySummaryVal !== 'false');
+
+        // Dynamic background updates startup on mount if both switches are fully enabled
+        if (settings.location_enabled && alwaysAllow) {
+          await startBackgroundLocation(user.id);
+        } else {
+          await stopBackgroundLocation();
+        }
 
         const simActiveKey = `${user.id}_simulated_suggestion_active`;
         const simDataKey = `${user.id}_simulated_suggestion_data`;
@@ -189,10 +207,19 @@ export default function ProfileScreen() {
       const payload: any = {};
       if (key === 'location_services_enabled') {
         payload.location_enabled = value === 'true';
+        await SecureStore.setItemAsync(`${user.id}_location_enabled`, value);
+        // Start or stop background location tracking dynamically based on alwaysAllowEnabled
+        if (value === 'true' && alwaysAllowEnabled) {
+          await startBackgroundLocation(user.id);
+        } else {
+          await stopBackgroundLocation();
+        }
       } else if (key === 'smart_activity_detection_enabled') {
         payload.smart_activity_detection = value === 'true';
+        await SecureStore.setItemAsync(`${user.id}_smart_detection_enabled`, value);
       } else if (key === 'smart_notifications_enabled') {
         payload.smart_notifications = value === 'true';
+        await SecureStore.setItemAsync(`${user.id}_notifications_enabled`, value);
         if (value === 'true') {
           // Fire push notifications permission prompt and token registration
           setTimeout(async () => {
@@ -210,18 +237,76 @@ export default function ProfileScreen() {
     }
   };
 
-  const handleToggleLocation = (value: boolean) => {
+  const handleToggleLocation = async (value: boolean) => {
     if (value) {
       setShowPermissionPrompt(true);
     } else {
       setLocationEnabled(false);
       setSmartDetectionEnabled(false);
       setNotificationsEnabled(false);
+      setAlwaysAllowEnabled(false);
+      await SecureStore.setItemAsync(`${user?.id}_location_always_allow`, 'false');
+      await SecureStore.setItemAsync(`${user?.id}_location_enabled`, 'false');
+      await SecureStore.setItemAsync(`${user?.id}_smart_detection_enabled`, 'false');
+      await SecureStore.setItemAsync(`${user?.id}_notifications_enabled`, 'false');
+      await stopBackgroundLocation();
       saveSetting('location_services_enabled', 'false');
       saveSetting('smart_activity_detection_enabled', 'false');
       saveSetting('smart_notifications_enabled', 'false');
       clearSimulatedSuggestion();
       Alert.alert('Location Services Disabled', 'All location-based activity suggestions and telemetry tracking have been stopped.');
+    }
+  };
+
+  const acceptAlwaysPermission = async () => {
+    setShowPermissionPrompt(false);
+    try {
+      // Step 1: Request Foreground location first (iOS/Expo requirement)
+      const { status: fgStatus } = await Location.requestForegroundPermissionsAsync();
+      if (fgStatus === 'granted') {
+        // Step 2: Request Background location ("Always Allow")
+        const { status: bgStatus } = await Location.requestBackgroundPermissionsAsync();
+        if (bgStatus === 'granted') {
+          setLocationEnabled(true);
+          setAlwaysAllowEnabled(true);
+          await SecureStore.setItemAsync(`${user?.id}_location_always_allow`, 'true');
+          await SecureStore.setItemAsync(`${user?.id}_location_enabled`, 'true');
+          await startBackgroundLocation(user!.id);
+          saveSetting('location_services_enabled', 'true');
+          Alert.alert(
+            'Always Allow Enabled',
+            'AuraJournal is now authorized to monitor smart stays behind the scenes in the background!'
+          );
+        } else {
+          // Fall back to foreground only ("While Using App")
+          setLocationEnabled(true);
+          setAlwaysAllowEnabled(false);
+          await SecureStore.setItemAsync(`${user?.id}_location_always_allow`, 'false');
+          await SecureStore.setItemAsync(`${user?.id}_location_enabled`, 'true');
+          await stopBackgroundLocation();
+          saveSetting('location_services_enabled', 'true');
+          Alert.alert(
+            'Background Access Denied',
+            'Background permission was not granted. AuraJournal will suggest activities while the app is active.'
+          );
+        }
+      } else {
+        setLocationEnabled(false);
+        setAlwaysAllowEnabled(false);
+        await SecureStore.setItemAsync(`${user?.id}_location_always_allow`, 'false');
+        await SecureStore.setItemAsync(`${user?.id}_location_enabled`, 'false');
+        await stopBackgroundLocation();
+        saveSetting('location_services_enabled', 'false');
+        Alert.alert(
+          'System Permission Denied',
+          'AuraJournal requires location permissions. Please enable them in your iOS system Settings.'
+        );
+      }
+    } catch (err) {
+      console.error('Failed to request background location:', err);
+      setLocationEnabled(false);
+      setAlwaysAllowEnabled(false);
+      saveSetting('location_services_enabled', 'false');
     }
   };
 
@@ -231,9 +316,17 @@ export default function ProfileScreen() {
       const { status } = await Location.requestForegroundPermissionsAsync();
       if (status === 'granted') {
         setLocationEnabled(true);
+        setAlwaysAllowEnabled(false);
+        await SecureStore.setItemAsync(`${user?.id}_location_always_allow`, 'false');
+        await SecureStore.setItemAsync(`${user?.id}_location_enabled`, 'true');
+        await stopBackgroundLocation();
         saveSetting('location_services_enabled', 'true');
       } else {
         setLocationEnabled(false);
+        setAlwaysAllowEnabled(false);
+        await SecureStore.setItemAsync(`${user?.id}_location_always_allow`, 'false');
+        await SecureStore.setItemAsync(`${user?.id}_location_enabled`, 'false');
+        await stopBackgroundLocation();
         saveSetting('location_services_enabled', 'false');
         Alert.alert(
           'System Permission Denied',
@@ -243,46 +336,19 @@ export default function ProfileScreen() {
     } catch (err) {
       console.error('Failed to request location permission:', err);
       setLocationEnabled(false);
+      setAlwaysAllowEnabled(false);
       saveSetting('location_services_enabled', 'false');
     }
   };
 
-  const rejectPermission = () => {
+  const rejectPermission = async () => {
     setLocationEnabled(false);
+    setAlwaysAllowEnabled(false);
     setShowPermissionPrompt(false);
+    await SecureStore.setItemAsync(`${user?.id}_location_always_allow`, 'false');
+    await SecureStore.setItemAsync(`${user?.id}_location_enabled`, 'false');
+    await stopBackgroundLocation();
     saveSetting('location_services_enabled', 'false');
-  };
-
-  const appendNotificationToHistory = async (sugg: any) => {
-    if (!user) return;
-    try {
-      const histKey = `${user.id}_notification_history`;
-      const stored = await SecureStore.getItemAsync(histKey);
-      const histArray = stored ? JSON.parse(stored) : [];
-      
-      histArray.unshift({
-        id: sugg.id,
-        title: sugg.title || 'Activity Detected',
-        message: sugg.message,
-        placeName: sugg.placeName,
-        durationMinutes: sugg.durationMinutes,
-        inferredActivity: sugg.inferredActivity,
-        category: sugg.category,
-        icon: sugg.icon,
-        color: sugg.color,
-        timeOfDay: sugg.timeOfDay,
-        date: sugg.date,
-        latitude: sugg.latitude,
-        longitude: sugg.longitude,
-        timestamp: new Date().toISOString(),
-        logged: false,
-      });
-      
-      await SecureStore.setItemAsync(histKey, JSON.stringify(histArray.slice(0, 20)));
-      console.log('🔔 [History] Appended notification stay to history center log.');
-    } catch (err) {
-      console.warn('Failed to append stay to notification history:', err);
-    }
   };
 
   const clearSimulatedSuggestion = async () => {
@@ -445,7 +511,7 @@ export default function ProfileScreen() {
         if (user) {
           await SecureStore.setItemAsync(`${user.id}_simulated_suggestion_active`, 'true');
           await SecureStore.setItemAsync(`${user.id}_simulated_suggestion_data`, JSON.stringify(mockSuggestion));
-          await appendNotificationToHistory(mockSuggestion);
+          await appendNotificationToHistory(user.id, mockSuggestion);
         }
 
         // Trigger real native push notification instantly on locked/background screens
@@ -505,7 +571,7 @@ export default function ProfileScreen() {
       if (user) {
         await SecureStore.setItemAsync(`${user.id}_simulated_suggestion_active`, 'true');
         await SecureStore.setItemAsync(`${user.id}_simulated_suggestion_data`, JSON.stringify(mockSuggestion));
-        await appendNotificationToHistory(mockSuggestion);
+        await appendNotificationToHistory(user.id, mockSuggestion);
       }
 
       // Trigger real native push notification instantly on locked/background screens
@@ -867,7 +933,11 @@ export default function ProfileScreen() {
             <View style={{ flex: 1 }}>
               <ThemedText style={styles.settingsLabel}>Location Intelligence</ThemedText>
               <ThemedText style={styles.settingsSubtitle}>
-                {locationEnabled ? 'Active (Smart detection enabled)' : 'Disabled (Off-grid suggestions)'}
+                {locationEnabled 
+                  ? alwaysAllowEnabled 
+                    ? '🟢 Active (Always Allow - background detection)' 
+                    : '🟢 Active (While Using App)' 
+                  : '🔴 Disabled (Off-grid suggestions)'}
               </ThemedText>
             </View>
             <IconSymbol size={16} name="chevron.right" color="#FFF" style={{ opacity: 0.3 }} />
@@ -1117,6 +1187,25 @@ export default function ProfileScreen() {
                 trackColor={{ true: PURPLE }}
               />
             </View>
+
+            {/* Permission Mode Sub-Card */}
+            {locationEnabled && (
+              <View style={styles.permissionModeCard}>
+                <View style={{ flex: 1, gap: 4 }}>
+                  <ThemedText style={styles.permissionModeLabel}>Permission Mode</ThemedText>
+                  <ThemedText style={styles.permissionModeDesc}>
+                    {alwaysAllowEnabled 
+                      ? '🟢 Always Allow — Geofences and stay detections will function continuously behind the scenes.' 
+                      : '🟡 While Using App — Geofences will only detect stayed activities while AuraJournal is active.'}
+                  </ThemedText>
+                </View>
+                {!alwaysAllowEnabled && (
+                  <TouchableOpacity style={styles.elevateBtn} onPress={acceptAlwaysPermission}>
+                    <ThemedText style={styles.elevateBtnText}>Upgrade to Always Allow</ThemedText>
+                  </TouchableOpacity>
+                )}
+              </View>
+            )}
 
             {/* TOGGLE 2: Smart Activity Detection */}
             <View style={[styles.switchRowCard, { opacity: locationEnabled ? 1 : 0.4 }]}>
@@ -1380,6 +1469,10 @@ export default function ProfileScreen() {
             <ThemedText style={styles.promptDesc}>
               AuraJournal uses your device geofences to automatically detect visited places (like gyms, parks, and cafes) to suggest timeline activities and event logs. Your location telemetry is processed locally offline and never shared.
             </ThemedText>
+
+            <TouchableOpacity style={styles.promptActionBtn} onPress={acceptAlwaysPermission}>
+              <ThemedText style={[styles.promptActionText, { color: PURPLE, fontWeight: 'bold' }]}>Always Allow</ThemedText>
+            </TouchableOpacity>
 
             <TouchableOpacity style={styles.promptActionBtn} onPress={acceptPermission}>
               <ThemedText style={styles.promptActionText}>Allow While Using App</ThemedText>
@@ -2237,5 +2330,41 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontWeight: '700',
     color: '#FFF',
+  },
+  permissionModeCard: {
+    padding: 16,
+    borderRadius: 16,
+    backgroundColor: 'rgba(255,255,255,0.02)',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.05)',
+    gap: 8,
+    marginTop: 10,
+    marginBottom: 4,
+  },
+  permissionModeLabel: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#FFF',
+  },
+  permissionModeDesc: {
+    fontSize: 12,
+    color: '#FFF',
+    opacity: 0.6,
+    lineHeight: 16,
+  },
+  elevateBtn: {
+    alignSelf: 'flex-start',
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    borderRadius: 10,
+    backgroundColor: 'rgba(143, 102, 255, 0.1)',
+    borderWidth: 1,
+    borderColor: 'rgba(143, 102, 255, 0.25)',
+    marginTop: 4,
+  },
+  elevateBtnText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#C4A8FF',
   },
 });

@@ -61,6 +61,9 @@ const MAPPING = {
   'shield.fill': 'shield',
   'trash.fill': 'delete',
   'map.fill': 'map',
+  'envelope.fill': 'email',
+  'eye.fill': 'visibility',
+  'eye.slash.fill': 'visibility-off',
 } as const;
 
 /**

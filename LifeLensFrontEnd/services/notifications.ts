@@ -183,3 +183,37 @@ export async function scheduleActivityNotification(payload: ActivityNotification
     trigger: null, // null triggers immediately
   });
 }
+
+/**
+ * Shared helper to append stay suggestions to the local Notification History Center in SecureStore.
+ */
+export async function appendNotificationToHistory(userId: string, sugg: any) {
+  try {
+    const histKey = `${userId}_notification_history`;
+    const stored = await SecureStore.getItemAsync(histKey);
+    const histArray = stored ? JSON.parse(stored) : [];
+    
+    histArray.unshift({
+      id: sugg.id,
+      title: sugg.title || 'Activity Detected',
+      message: sugg.message,
+      placeName: sugg.placeName,
+      durationMinutes: sugg.durationMinutes,
+      inferredActivity: sugg.inferredActivity,
+      category: sugg.category,
+      icon: sugg.icon,
+      color: sugg.color,
+      timeOfDay: sugg.timeOfDay,
+      date: sugg.date,
+      latitude: sugg.latitude,
+      longitude: sugg.longitude,
+      timestamp: new Date().toISOString(),
+      logged: false,
+    });
+    
+    await SecureStore.setItemAsync(histKey, JSON.stringify(histArray.slice(0, 20)));
+    console.log('🔔 [History] Appended notification stay to history center log.');
+  } catch (err) {
+    console.warn('Failed to append stay to notification history:', err);
+  }
+}

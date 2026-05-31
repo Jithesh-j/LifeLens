@@ -9,7 +9,16 @@
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "infoPlist": {
+        "UIBackgroundModes": [
+          "location",
+          "location"
+        ],
+        "NSLocationWhenInUseUsageDescription": "AuraJournal uses your location to show live weather, detect activities like walking, running, and improve your timeline automatically.",
+        "NSLocationAlwaysAndWhenInUseUsageDescription": "AuraJournal uses background location to detect meaningful activities and suggest timeline entries even when the app is not open."
+      },
+      "bundleIdentifier": "com.anonymous.LifeLensJournal"
     },
     "android": {
       "adaptiveIcon": {
@@ -19,7 +28,11 @@
         "monochromeImage": "./assets/images/android-icon-monochrome.png"
       },
       "edgeToEdgeEnabled": true,
-      "predictiveBackGestureEnabled": false
+      "predictiveBackGestureEnabled": false,
+      "permissions": [
+        "android.permission.ACCESS_COARSE_LOCATION",
+        "android.permission.ACCESS_FINE_LOCATION"
+      ]
     },
     "web": {
       "output": "static",
@@ -43,7 +56,9 @@
       [
         "expo-location",
         {
-          "locationAlwaysAndWhenInUsePermission": "Allow AuraJournal to access your location to show live weather and intelligent geofenced suggestions."
+          "locationWhenInUsePermission": "Allow AuraJournal to access your location to show live weather and intelligent geofenced suggestions.",
+          "locationAlwaysAndWhenInUsePermission": "Allow AuraJournal to access your location always to detect stays and suggest timeline activities behind the scenes.",
+          "locationAlwaysPermission": "Allow AuraJournal to access your location always to detect stays and suggest timeline activities behind the scenes."
         }
       ]
     ],

@@ -509,7 +509,7 @@ function ProgressRing({
         />
         <ThemedText style={{ fontSize: 13, fontWeight: '800', color }}>{pct}%</ThemedText>
       </View>
-      <ThemedText style={{ fontSize: 10, fontWeight: '600', opacity: 0.5 }}>{label}</ThemedText>
+      <ThemedText style={{ color: '#FFF', fontSize: 10, fontWeight: '600', opacity: 0.5 }}>{label}</ThemedText>
     </View>
   );
 }
@@ -779,7 +779,7 @@ function SuggestionsTab({
           <View style={[s.suggestionCard, { backgroundColor: cardBg, alignItems: 'center', paddingVertical: 40, gap: 12 }]}>
             <IconSymbol size={36} name="sparkles" color={PURPLE} />
             <ThemedText style={{ fontSize: 16, fontWeight: '700', color: '#FFF' }}>No Suggestions Yet</ThemedText>
-            <ThemedText style={{ fontSize: 13, opacity: 0.5, textAlign: 'center', paddingHorizontal: 20 }}>
+            <ThemedText style={{ color: '#FFF', fontSize: 13, opacity: 0.5, textAlign: 'center', paddingHorizontal: 20 }}>
               Start logging your activities, workouts, work sessions, or voice recordings, and AuraJournal will dynamically analyze your behaviors.
             </ThemedText>
             <TouchableOpacity
@@ -994,7 +994,7 @@ export default function InsightsScreen() {
   const [backendSuggestions, setBackendSuggestions] = useState<any[]>([]);
   const [suggestionsLoading, setSuggestionsLoading] = useState<boolean>(false);
 
-  const cardBg = useThemeColor({ light: '#F7F7FA', dark: '#1C1C1E' }, 'background');
+  const cardBg = DEEP_PURPLE;
   const data = useMemo(() => analyzeSchedule(scheduleItems), [scheduleItems]);
 
   const tabs: { key: TabKey; label: string; icon: any }[] = [
@@ -1109,7 +1109,7 @@ const chartStyles = StyleSheet.create({
   barCol: { alignItems: 'center', flex: 1 },
   barTrack: { justifyContent: 'flex-end', width: 18, borderRadius: 9 },
   barFill: { width: 18, borderRadius: 9 },
-  barLabel: { fontSize: 10, fontWeight: '600', opacity: 0.45, marginTop: 6 },
+  barLabel: { color: '#FFF', fontSize: 10, fontWeight: '600', opacity: 0.45, marginTop: 6 },
 
   lineChartContainer: { marginTop: 8, position: 'relative' },
   lineArea: { position: 'relative' },
@@ -1117,7 +1117,7 @@ const chartStyles = StyleSheet.create({
   dataDot: { position: 'absolute', width: 10, height: 10, borderRadius: 5, borderWidth: 2 },
   connectLine: { position: 'absolute', height: 2, borderRadius: 1 },
   lineLabels: { flexDirection: 'row', marginTop: 8 },
-  lineLabel: { fontSize: 10, fontWeight: '600', opacity: 0.45, textAlign: 'center' },
+  lineLabel: { color: '#FFF', fontSize: 10, fontWeight: '600', opacity: 0.45, textAlign: 'center' },
 });
 
 const s = StyleSheet.create({
@@ -1185,8 +1185,8 @@ const s = StyleSheet.create({
       default: {},
     }),
   },
-  metricValue: { fontSize: 18, fontWeight: '800' },
-  metricLabel: { fontSize: 10, fontWeight: '600', opacity: 0.45 },
+  metricValue: { color: '#FFF', fontSize: 18, fontWeight: '800' },
+  metricLabel: { color: '#FFF', fontSize: 10, fontWeight: '600', opacity: 0.45 },
 
   // Chart card
   chartCard: {
@@ -1211,8 +1211,8 @@ const s = StyleSheet.create({
     }),
   },
   chartHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 8 },
-  chartTitle: { fontSize: 17, fontWeight: '800', letterSpacing: -0.2 },
-  chartSubtitle: { fontSize: 12, opacity: 0.45, fontWeight: '500', marginTop: 2 },
+  chartTitle: { color: '#FFF', fontSize: 17, fontWeight: '800', letterSpacing: -0.2 },
+  chartSubtitle: { color: '#FFF', fontSize: 12, opacity: 0.45, fontWeight: '500', marginTop: 2 },
   aiBadge: { width: 28, height: 28, borderRadius: 14, justifyContent: 'center', alignItems: 'center' },
 
   // Category breakdown
@@ -1220,7 +1220,7 @@ const s = StyleSheet.create({
   categoryRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   categoryLeft: { flexDirection: 'row', alignItems: 'center', width: 70, gap: 8 },
   categoryDot: { width: 8, height: 8, borderRadius: 4 },
-  categoryLabel: { fontSize: 12, fontWeight: '600', opacity: 0.7 },
+  categoryLabel: { color: '#FFF', fontSize: 12, fontWeight: '600', opacity: 0.7 },
   categoryBarTrack: { flex: 1, height: 8, borderRadius: 4, backgroundColor: '#8E8E9310' },
   categoryBarFill: { height: 8, borderRadius: 4 },
   categoryPct: { fontSize: 12, fontWeight: '700', width: 36, textAlign: 'right' },
@@ -1230,8 +1230,8 @@ const s = StyleSheet.create({
   correlationItem: { flexDirection: 'row', gap: 14, paddingVertical: 14, borderTopWidth: 1, borderTopColor: '#8E8E9310' },
   corrIcon: { width: 40, height: 40, borderRadius: 12, justifyContent: 'center', alignItems: 'center', marginTop: 2 },
   corrContent: { flex: 1 },
-  corrTitle: { fontSize: 14, fontWeight: '700', marginBottom: 4 },
-  corrDesc: { fontSize: 12, opacity: 0.6, lineHeight: 18, fontWeight: '500' },
+  corrTitle: { color: '#FFF', fontSize: 14, fontWeight: '700', marginBottom: 4 },
+  corrDesc: { color: '#FFF', fontSize: 12, opacity: 0.6, lineHeight: 18, fontWeight: '500' },
   confidenceRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 8 },
   confidenceTrack: { flex: 1, height: 4, borderRadius: 2, backgroundColor: '#8E8E9312' },
   confidenceFill: { height: 4, borderRadius: 2 },
@@ -1240,8 +1240,8 @@ const s = StyleSheet.create({
   // Suggestions tab
   suggestionsHeader: { flexDirection: 'row', alignItems: 'center', gap: 14, marginBottom: 4 },
   suggestionsHeaderIcon: { width: 48, height: 48, borderRadius: 16, justifyContent: 'center', alignItems: 'center' },
-  suggestionsHeaderTitle: { fontSize: 17, fontWeight: '800', letterSpacing: -0.2 },
-  suggestionsHeaderSub: { fontSize: 12, opacity: 0.45, fontWeight: '500', marginTop: 2 },
+  suggestionsHeaderTitle: { color: '#FFF', fontSize: 17, fontWeight: '800', letterSpacing: -0.2 },
+  suggestionsHeaderSub: { color: '#FFF', fontSize: 12, opacity: 0.45, fontWeight: '500', marginTop: 2 },
   suggestionCard: {
     borderRadius: 20,
     padding: 18,
@@ -1271,8 +1271,8 @@ const s = StyleSheet.create({
   suggAiBadge: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 10 },
   suggExpanded: { marginTop: 14, marginLeft: 58 },
   suggDivider: { height: 1, marginBottom: 12 },
-  suggExpandLabel: { fontSize: 10, fontWeight: '800', letterSpacing: 0.8, opacity: 0.35, marginBottom: 4 },
-  suggExpandValue: { fontSize: 13, lineHeight: 19, opacity: 0.65, fontWeight: '500' },
+  suggExpandLabel: { color: '#FFF', fontSize: 10, fontWeight: '800', letterSpacing: 0.8, opacity: 0.35, marginBottom: 4 },
+  suggExpandValue: { color: '#FFF', fontSize: 13, lineHeight: 19, opacity: 0.65, fontWeight: '500' },
 
   // Trends tab
   trendBadge: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 10, paddingVertical: 5, borderRadius: 10, alignSelf: 'flex-start' },
@@ -1305,10 +1305,10 @@ const s = StyleSheet.create({
     }),
   },
   trendSummaryIcon: { width: 40, height: 40, borderRadius: 14, justifyContent: 'center', alignItems: 'center' },
-  trendSummaryValue: { fontSize: 20, fontWeight: '800' },
-  trendSummaryLabel: { fontSize: 11, fontWeight: '600', opacity: 0.45 },
+  trendSummaryValue: { color: '#FFF', fontSize: 20, fontWeight: '800' },
+  trendSummaryLabel: { color: '#FFF', fontSize: 11, fontWeight: '600', opacity: 0.45 },
 
   // Footer
   footer: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', marginTop: 8, paddingVertical: 8 },
-  footerText: { fontSize: 12, opacity: 0.3, fontWeight: '500' },
+  footerText: { color: '#FFF', fontSize: 12, opacity: 0.3, fontWeight: '500' },
 });

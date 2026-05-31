@@ -13,8 +13,6 @@ import {
 import { Link, useRouter } from 'expo-router';
 import { useAuth } from '@/context/auth';
 import { ThemedText } from '@/components/themed-text';
-import { ThemedView } from '@/components/themed-view';
-import { useThemeColor } from '@/hooks/use-theme-color';
 import { IconSymbol } from '@/components/ui/icon-symbol';
 
 export default function LoginScreen() {
@@ -27,10 +25,7 @@ export default function LoginScreen() {
   const { login, resendOTP } = useAuth();
   const router = useRouter();
 
-  const primaryColor = '#7C4DFF'; // Luxury vibrant violet
-  const tintColor = useThemeColor({}, 'tint');
-  const textColor = useThemeColor({}, 'text');
-  const background = useThemeColor({}, 'background');
+  const primaryColor = '#8F66FF'; // Standard Premium Purple
 
   const handleLogin = async () => {
     if (!email || !password) {
@@ -64,16 +59,21 @@ export default function LoginScreen() {
 
   return (
     <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
-      <ThemedView style={styles.container}>
+      <View style={styles.container}>
+        {/* Background Glow */}
+        <View style={styles.glowCircle1} />
+        <View style={styles.glowCircle2} />
+        <View style={styles.glowCircle3} />
+
         <KeyboardAvoidingView
           behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
           style={styles.keyboardView}>
           <View style={styles.header}>
-            <View style={[styles.logoIconBg, { backgroundColor: primaryColor + '15' }]}>
-              <IconSymbol size={48} name="eyes" color={primaryColor} />
+            <View style={styles.logoIconBg}>
+              <IconSymbol size={44} name="eyes" color={primaryColor} />
             </View>
             <ThemedText style={styles.title}>LifeLens</ThemedText>
-            <ThemedText style={styles.subtitle}>Your AI Daily Activity Journal</ThemedText>
+            <ThemedText style={styles.subtitle}>Your Daily Life Insights</ThemedText>
           </View>
 
           <View style={styles.form}>
@@ -109,12 +109,12 @@ export default function LoginScreen() {
 
             <View style={styles.inputContainer}>
               <ThemedText style={styles.label}>Email Address</ThemedText>
-              <View style={[styles.inputWrapper, { borderColor: primaryColor + '40' }]}>
-                <IconSymbol size={20} name="paperplane.fill" color={primaryColor} style={styles.inputIcon} />
+              <View style={styles.inputWrapper}>
+                <IconSymbol size={20} name="envelope.fill" color={primaryColor} style={styles.inputIcon} />
                 <TextInput
-                  style={[styles.input, { color: textColor }]}
+                  style={styles.input}
                   placeholder="name@domain.com"
-                  placeholderTextColor="#8E8E93"
+                  placeholderTextColor="rgba(255, 255, 255, 0.35)"
                   keyboardType="email-address"
                   autoCapitalize="none"
                   value={email}
@@ -125,25 +125,25 @@ export default function LoginScreen() {
 
             <View style={styles.inputContainer}>
               <ThemedText style={styles.label}>Password</ThemedText>
-              <View style={[styles.inputWrapper, { borderColor: primaryColor + '40' }]}>
-                <IconSymbol size={20} name="house.fill" color={primaryColor} style={styles.inputIcon} />
+              <View style={styles.inputWrapper}>
+                <IconSymbol size={20} name="lock.fill" color={primaryColor} style={styles.inputIcon} />
                 <TextInput
-                  style={[styles.input, { color: textColor }]}
+                  style={styles.input}
                   placeholder="••••••••"
-                  placeholderTextColor="#8E8E93"
+                  placeholderTextColor="rgba(255, 255, 255, 0.35)"
                   secureTextEntry={secureText}
                   autoCapitalize="none"
                   value={password}
                   onChangeText={setPassword}
                 />
                 <TouchableOpacity onPress={() => setSecureText(!secureText)} style={styles.eyeIcon}>
-                  <IconSymbol size={20} name="paperplane.fill" color="#8E8E93" />
+                  <IconSymbol size={20} name={secureText ? 'eye.fill' : 'eye.slash.fill'} color="rgba(255, 255, 255, 0.4)" />
                 </TouchableOpacity>
               </View>
             </View>
 
             <TouchableOpacity
-              style={[styles.loginBtn, { backgroundColor: primaryColor }]}
+              style={styles.loginBtn}
               onPress={handleLogin}
               disabled={loading}>
               {loading ? (
@@ -157,13 +157,13 @@ export default function LoginScreen() {
               <ThemedText style={styles.footerText}>New to LifeLens? </ThemedText>
               <Link href="/(auth)/register" asChild>
                 <TouchableOpacity>
-                  <ThemedText style={[styles.registerLink, { color: primaryColor }]}>Create Account</ThemedText>
+                  <ThemedText style={styles.registerLink}>Create Account</ThemedText>
                 </TouchableOpacity>
               </Link>
             </View>
           </View>
         </KeyboardAvoidingView>
-      </ThemedView>
+      </View>
     </TouchableWithoutFeedback>
   );
 }
@@ -171,16 +171,48 @@ export default function LoginScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+    backgroundColor: '#080916',
     justifyContent: 'center',
+  },
+  glowCircle1: {
+    position: 'absolute',
+    top: 40,
+    left: -100,
+    width: 360,
+    height: 360,
+    borderRadius: 180,
+    backgroundColor: 'rgba(143, 102, 255, 0.10)',
+    zIndex: 0,
+  },
+  glowCircle2: {
+    position: 'absolute',
+    bottom: 100,
+    right: -120,
+    width: 380,
+    height: 380,
+    borderRadius: 190,
+    backgroundColor: 'rgba(59, 130, 246, 0.08)',
+    zIndex: 0,
+  },
+  glowCircle3: {
+    position: 'absolute',
+    top: '40%',
+    right: -80,
+    width: 300,
+    height: 300,
+    borderRadius: 150,
+    backgroundColor: 'rgba(6, 182, 212, 0.07)',
+    zIndex: 0,
   },
   keyboardView: {
     flex: 1,
     paddingHorizontal: 24,
     justifyContent: 'center',
+    zIndex: 1,
   },
   header: {
     alignItems: 'center',
-    marginBottom: 40,
+    marginBottom: 35,
   },
   logoIconBg: {
     width: 80,
@@ -189,99 +221,41 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     marginBottom: 16,
+    backgroundColor: 'rgba(143, 102, 255, 0.12)',
+    borderWidth: 1.5,
+    borderColor: 'rgba(143, 102, 255, 0.25)',
   },
   title: {
+    color: '#FFF',
     fontSize: 32,
-    fontWeight: '800',
-    letterSpacing: 0.5,
+    fontWeight: '700',
+    letterSpacing: 1.5,
+    paddingVertical:10
   },
   subtitle: {
-    fontSize: 16,
+    color: '#B0B0C4',
+    fontSize: 15,
     opacity: 0.7,
-    marginTop: 4,
+    marginTop: 6,
   },
   form: {
     gap: 18,
+    backgroundColor: 'rgba(17, 19, 42, 0.65)',
+    borderRadius: 24,
+    padding: 24,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.08)',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.2,
+    shadowRadius: 16,
+    elevation: 4,
   },
   formTitle: {
+    color: '#FFF',
     fontSize: 20,
     fontWeight: '700',
     marginBottom: 4,
-  },
-  errorAlert: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#FF525215',
-    padding: 12,
-    borderRadius: 12,
-    gap: 8,
-    borderWidth: 1,
-    borderColor: '#FF525230',
-  },
-  errorText: {
-    color: '#FF5252',
-    fontSize: 14,
-    fontWeight: '500',
-    flex: 1,
-  },
-  inputContainer: {
-    gap: 8,
-  },
-  label: {
-    fontSize: 14,
-    fontWeight: '600',
-    opacity: 0.8,
-  },
-  inputWrapper: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    borderWidth: 1.5,
-    borderRadius: 14,
-    paddingHorizontal: 14,
-    height: 52,
-  },
-  inputIcon: {
-    marginRight: 10,
-    opacity: 0.8,
-  },
-  input: {
-    flex: 1,
-    fontSize: 16,
-    height: '100%',
-  },
-  eyeIcon: {
-    padding: 4,
-  },
-  loginBtn: {
-    height: 52,
-    borderRadius: 14,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginTop: 10,
-    shadowColor: '#7C4DFF',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.2,
-    shadowRadius: 8,
-    elevation: 3,
-  },
-  loginBtnText: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: '700',
-  },
-  footer: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginTop: 12,
-  },
-  footerText: {
-    fontSize: 14,
-    opacity: 0.7,
-  },
-  registerLink: {
-    fontSize: 14,
-    fontWeight: '700',
   },
   errorAlertContainer: {
     backgroundColor: '#FF525215',
@@ -289,6 +263,18 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#FF525230',
     overflow: 'hidden',
+  },
+  errorAlert: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 12,
+    gap: 8,
+  },
+  errorText: {
+    color: '#FF5252',
+    fontSize: 14,
+    fontWeight: '500',
+    flex: 1,
   },
   errorActions: {
     flexDirection: 'row',
@@ -307,6 +293,72 @@ const styles = StyleSheet.create({
   errorActionBtnText: {
     color: '#FF5252',
     fontSize: 13,
+    fontWeight: '700',
+  },
+  inputContainer: {
+    gap: 8,
+  },
+  label: {
+    color: '#FFF',
+    fontSize: 14,
+    fontWeight: '600',
+    opacity: 0.85,
+  },
+  inputWrapper: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderWidth: 1.5,
+    borderColor: 'rgba(255, 255, 255, 0.08)',
+    backgroundColor: 'rgba(255, 255, 255, 0.05)',
+    borderRadius: 14,
+    paddingHorizontal: 16,
+    height: 52,
+  },
+  inputIcon: {
+    marginRight: 10,
+    opacity: 0.8,
+  },
+  input: {
+    flex: 1,
+    fontSize: 16,
+    height: '100%',
+    color: '#FFF',
+  },
+  eyeIcon: {
+    padding: 4,
+  },
+  loginBtn: {
+    height: 52,
+    borderRadius: 14,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginTop: 10,
+    backgroundColor: '#8F66FF',
+    shadowColor: '#8F66FF',
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.25,
+    shadowRadius: 12,
+    elevation: 4,
+  },
+  loginBtnText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '700',
+  },
+  footer: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginTop: 12,
+  },
+  footerText: {
+    color: '#B0B0C4',
+    fontSize: 14,
+    opacity: 0.8,
+  },
+  registerLink: {
+    color: '#8F66FF',
+    fontSize: 14,
     fontWeight: '700',
   },
 });

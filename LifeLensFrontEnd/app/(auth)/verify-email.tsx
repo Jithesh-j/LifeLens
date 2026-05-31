@@ -117,7 +117,7 @@ export default function VerifyEmailScreen() {
                 { borderColor: primaryColor + '20' },
                 isFocused && [styles.codeCellFocused, { borderColor: primaryColor }],
               ]}>
-              <ThemedText style={[styles.codeCellText, { color: textColor }]}>
+              <ThemedText style={styles.codeCellText}>
                 {digit}
               </ThemedText>
             </View>
@@ -272,12 +272,14 @@ const styles = StyleSheet.create({
     fontSize: 26,
     fontWeight: '800',
     letterSpacing: 0.3,
+    color: '#FFFFFF',
   },
   subtitle: {
     fontSize: 14,
     opacity: 0.6,
     marginTop: 6,
     textAlign: 'center',
+    color: 'rgba(255, 255, 255, 0.7)',
   },
   emailHighlight: {
     fontSize: 14,
@@ -353,6 +355,7 @@ const styles = StyleSheet.create({
     fontSize: 22,
     fontWeight: '800',
     textAlign: 'center',
+    color: '#FFFFFF',
   },
   hiddenInput: {
     position: 'absolute',
