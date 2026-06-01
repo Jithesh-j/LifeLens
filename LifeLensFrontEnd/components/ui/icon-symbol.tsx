@@ -64,6 +64,32 @@ const MAPPING = {
   'envelope.fill': 'email',
   'eye.fill': 'visibility',
   'eye.slash.fill': 'visibility-off',
+  'person.3.fill': 'groups',
+  'person.3': 'groups',
+  'person.2.fill': 'people',
+  'person.2': 'people',
+  'person.2.circle.fill': 'people',
+  'person.2.circle': 'people',
+  'person.group.fill': 'groups',
+  'person.group': 'groups',
+  'social': 'groups',
+  'people.fill': 'people',
+  'people': 'people',
+  'cart': 'shopping-cart',
+  'cart.fill': 'shopping-cart',
+  'cart.badge.plus': 'shopping-cart',
+  'bag': 'shopping-bag',
+  'bag.fill': 'shopping-bag',
+  'basket': 'shopping-basket',
+  'basket.fill': 'shopping-basket',
+  'checklist': 'playlist-add-check',
+  'checkmark.circle': 'check-circle',
+  'doc.text': 'description',
+  'list.bullet': 'format-list-bulleted',
+  'book.fill': 'book',
+  'book': 'book',
+  'cup.and.saucer.fill': 'local-cafe',
+  'cup.and.saucer': 'local-cafe',
 } as const;
 
 /**
@@ -83,5 +109,6 @@ export function IconSymbol({
   style?: StyleProp<TextStyle>;
   weight?: SymbolWeight;
 }) {
-  return <MaterialIcons color={color} size={size} name={MAPPING[name]} style={style} />;
+  const iconName = MAPPING[name] || 'auto-awesome';
+  return <MaterialIcons color={color} size={size} name={iconName} style={style} />;
 }

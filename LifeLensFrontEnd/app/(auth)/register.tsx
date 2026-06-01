@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import {
   StyleSheet,
   TextInput,
@@ -10,6 +10,7 @@ import {
   TouchableWithoutFeedback,
   Keyboard,
   ScrollView,
+  Animated,
 } from 'react-native';
 import { Link, useRouter } from 'expo-router';
 import { useAuth } from '@/context/auth';
@@ -28,6 +29,135 @@ export default function RegisterScreen() {
   const router = useRouter();
 
   const primaryColor = '#8F66FF'; // Standard Premium Purple
+
+  // --- Adorable AI Character Animations ---
+  const eyesScaleY = useRef(new Animated.Value(1)).current;
+  const pupilOffset = useRef(new Animated.ValueXY({ x: 0, y: 0 })).current;
+  const shutterTranslateY = useRef(new Animated.Value(25)).current; // starts down (revealed)
+  const mouthScaleX = useRef(new Animated.Value(1)).current;
+  const mouthScaleY = useRef(new Animated.Value(1)).current;
+
+  // Single-blink animation
+  const triggerBlink = () => {
+    // Only trigger if eyes are currently open (scale is near 1)
+    // @ts-ignore
+    if (eyesScaleY._value < 0.5) return;
+
+    Animated.sequence([
+      Animated.timing(eyesScaleY, { toValue: 0.1, duration: 100, useNativeDriver: true }),
+      Animated.timing(eyesScaleY, { toValue: 1, duration: 120, useNativeDriver: true }),
+    ]).start();
+  };
+
+  // When focusing Username input: look slightly UP/LEFT and blink
+  const handleUsernameFocus = () => {
+    Animated.spring(shutterTranslateY, { toValue: 25, tension: 45, friction: 6, useNativeDriver: true }).start();
+    Animated.spring(mouthScaleX, { toValue: 1, useNativeDriver: true }).start();
+    Animated.spring(mouthScaleY, { toValue: 1, useNativeDriver: true }).start();
+
+    triggerBlink();
+    Animated.spring(pupilOffset, {
+      toValue: { x: -2, y: -2 },
+      tension: 40,
+      friction: 5,
+      useNativeDriver: true,
+    }).start();
+  };
+
+  // When focusing Email input: look slightly UP/RIGHT and blink
+  const handleEmailFocus = () => {
+    Animated.spring(shutterTranslateY, { toValue: 25, tension: 45, friction: 6, useNativeDriver: true }).start();
+    Animated.spring(mouthScaleX, { toValue: 1, useNativeDriver: true }).start();
+    Animated.spring(mouthScaleY, { toValue: 1, useNativeDriver: true }).start();
+
+    triggerBlink();
+    Animated.spring(pupilOffset, {
+      toValue: { x: 2, y: -2 },
+      tension: 40,
+      friction: 5,
+      useNativeDriver: true,
+    }).start();
+  };
+
+  // Shift pupils horizontally as the user types
+  const handleEmailChange = (text: string) => {
+    setEmail(text);
+    const shiftX = Math.max(-5, Math.min(5, (text.length - 15) * 0.3));
+    Animated.timing(pupilOffset.x, {
+      toValue: shiftX,
+      duration: 50,
+      useNativeDriver: true,
+    }).start();
+  };
+
+  // When focusing Password or Confirm inputs: cover eyes (if secure) or look DOWN (if revealed)
+  const handlePasswordFocus = () => {
+    if (secureText) {
+      // Cover eyes
+      Animated.spring(shutterTranslateY, {
+        toValue: -15, // slide hands UP
+        tension: 45,
+        friction: 6,
+        useNativeDriver: true,
+      }).start();
+      Animated.spring(mouthScaleX, { toValue: 0.8, useNativeDriver: true }).start();
+      Animated.spring(mouthScaleY, { toValue: 0.8, useNativeDriver: true }).start();
+    } else {
+      triggerBlink();
+      // Look down
+      Animated.spring(pupilOffset, {
+        toValue: { x: 0, y: 4 },
+        tension: 40,
+        friction: 5,
+        useNativeDriver: true,
+      }).start();
+    }
+  };
+
+  const handlePasswordBlur = () => {
+    // Reset positions when focusing away
+    Animated.spring(shutterTranslateY, { toValue: 25, tension: 45, friction: 6, useNativeDriver: true }).start();
+    Animated.spring(pupilOffset, { toValue: { x: 0, y: 0 }, tension: 40, friction: 5, useNativeDriver: true }).start();
+    Animated.spring(mouthScaleX, { toValue: 1, useNativeDriver: true }).start();
+    Animated.spring(mouthScaleY, { toValue: 1, useNativeDriver: true }).start();
+  };
+
+  // Toggle secure visibility and play spring transitions
+  const handleToggleSecureText = () => {
+    const nextSecure = !secureText;
+    setSecureText(nextSecure);
+
+    if (nextSecure) {
+      // Hide password -> Cover eyes
+      Animated.spring(shutterTranslateY, {
+        toValue: -15, // cover eyes
+        tension: 45,
+        friction: 6,
+        useNativeDriver: true,
+      }).start();
+      Animated.spring(mouthScaleX, { toValue: 0.8, useNativeDriver: true }).start();
+      Animated.spring(mouthScaleY, { toValue: 0.8, useNativeDriver: true }).start();
+    } else {
+      // Reveal password -> Drop hands & open mouth wide in surprise
+      Animated.spring(shutterTranslateY, {
+        toValue: 25, // reveal eyes
+        tension: 45,
+        friction: 6,
+        useNativeDriver: true,
+      }).start();
+      Animated.spring(pupilOffset, {
+        toValue: { x: 0, y: 4 }, // look down
+        tension: 40,
+        friction: 5,
+        useNativeDriver: true,
+      }).start();
+
+      Animated.sequence([
+        Animated.spring(mouthScaleX, { toValue: 1.4, useNativeDriver: true }),
+        Animated.spring(mouthScaleY, { toValue: 2.2, useNativeDriver: true }),
+      ]).start();
+    }
+  };
 
   const handleRegister = async () => {
     if (!username || !email || !password || !confirmPassword) {
@@ -65,9 +195,30 @@ export default function RegisterScreen() {
           behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
           style={styles.keyboardView}>
           <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
+            
+            {/* Animated AI Character Logo */}
             <View style={styles.header}>
               <View style={styles.logoIconBg}>
-                <IconSymbol size={40} name="paperplane.fill" color={primaryColor} />
+                <View style={styles.faceContainer}>
+                  {/* Left Eye */}
+                  <Animated.View style={[styles.eyeBg, { transform: [{ scaleY: eyesScaleY }] }]}>
+                    <Animated.View style={[styles.pupil, { transform: pupilOffset.getTranslateTransform() }]} />
+                  </Animated.View>
+
+                  {/* Right Eye */}
+                  <Animated.View style={[styles.eyeBg, { transform: [{ scaleY: eyesScaleY }] }]}>
+                    <Animated.View style={[styles.pupil, { transform: pupilOffset.getTranslateTransform() }]} />
+                  </Animated.View>
+
+                  {/* Shutter Hands (Slides up to cover eyes in secure state) */}
+                  <Animated.View style={[styles.shutterHands, { transform: [{ translateY: shutterTranslateY }] }]}>
+                    <View style={styles.leftHand} />
+                    <View style={styles.rightHand} />
+                  </Animated.View>
+                </View>
+
+                {/* Mouth */}
+                <Animated.View style={[styles.mouth, { transform: [{ scaleX: mouthScaleX }, { scaleY: mouthScaleY }] }]} />
               </View>
               <ThemedText style={styles.title}>Get Started</ThemedText>
               <ThemedText style={styles.subtitle}>Begin your AI wellness journal journey</ThemedText>
@@ -92,6 +243,8 @@ export default function RegisterScreen() {
                     autoCapitalize="none"
                     value={username}
                     onChangeText={setUsername}
+                    onFocus={handleUsernameFocus}
+                    onBlur={handlePasswordBlur}
                   />
                 </View>
               </View>
@@ -107,7 +260,9 @@ export default function RegisterScreen() {
                     keyboardType="email-address"
                     autoCapitalize="none"
                     value={email}
-                    onChangeText={setEmail}
+                    onChangeText={handleEmailChange}
+                    onFocus={handleEmailFocus}
+                    onBlur={handlePasswordBlur}
                   />
                 </View>
               </View>
@@ -124,8 +279,10 @@ export default function RegisterScreen() {
                     autoCapitalize="none"
                     value={password}
                     onChangeText={setPassword}
+                    onFocus={handlePasswordFocus}
+                    onBlur={handlePasswordBlur}
                   />
-                  <TouchableOpacity onPress={() => setSecureText(!secureText)} style={styles.eyeIcon}>
+                  <TouchableOpacity onPress={handleToggleSecureText} style={styles.eyeIcon}>
                     <IconSymbol size={20} name={secureText ? 'eye.fill' : 'eye.slash.fill'} color="rgba(255, 255, 255, 0.4)" />
                   </TouchableOpacity>
                 </View>
@@ -143,6 +300,8 @@ export default function RegisterScreen() {
                     autoCapitalize="none"
                     value={confirmPassword}
                     onChangeText={setConfirmPassword}
+                    onFocus={handlePasswordFocus}
+                    onBlur={handlePasswordBlur}
                   />
                 </View>
               </View>
@@ -225,15 +384,77 @@ const styles = StyleSheet.create({
     marginBottom: 30,
   },
   logoIconBg: {
-    width: 70,
-    height: 70,
-    borderRadius: 22,
+    width: 90,
+    height: 90,
+    borderRadius: 28,
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: 14,
+    marginBottom: 16,
     backgroundColor: 'rgba(143, 102, 255, 0.12)',
     borderWidth: 1.5,
     borderColor: 'rgba(143, 102, 255, 0.25)',
+    overflow: 'hidden',
+    position: 'relative',
+  },
+  faceContainer: {
+    flexDirection: 'row',
+    gap: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+    position: 'relative',
+    width: 70,
+    height: 35,
+    marginTop: -8,
+  },
+  eyeBg: {
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    backgroundColor: '#FFF',
+    justifyContent: 'center',
+    alignItems: 'center',
+    overflow: 'hidden',
+    position: 'relative',
+  },
+  pupil: {
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+    backgroundColor: '#8F66FF',
+  },
+  shutterHands: {
+    position: 'absolute',
+    bottom: -22, // hide below
+    left: 0,
+    right: 0,
+    height: 26,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    paddingHorizontal: 4,
+    zIndex: 10,
+  },
+  leftHand: {
+    width: 26,
+    height: 26,
+    borderRadius: 13,
+    backgroundColor: '#8F66FF',
+    borderWidth: 1.5,
+    borderColor: 'rgba(255,255,255,0.15)',
+  },
+  rightHand: {
+    width: 26,
+    height: 26,
+    borderRadius: 13,
+    backgroundColor: '#8F66FF',
+    borderWidth: 1.5,
+    borderColor: 'rgba(255,255,255,0.15)',
+  },
+  mouth: {
+    width: 14,
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: '#8F66FF',
+    marginTop: 2,
   },
   title: {
     color: '#FFF',
