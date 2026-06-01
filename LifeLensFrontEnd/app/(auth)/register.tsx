@@ -221,7 +221,7 @@ export default function RegisterScreen() {
                 <Animated.View style={[styles.mouth, { transform: [{ scaleX: mouthScaleX }, { scaleY: mouthScaleY }] }]} />
               </View>
               <ThemedText style={styles.title}>Get Started</ThemedText>
-              <ThemedText style={styles.subtitle}>Begin your AI wellness journal journey</ThemedText>
+              <ThemedText style={styles.subtitle}>Begin your Life Insights!</ThemedText>
             </View>
 
             <View style={styles.form}>
@@ -461,6 +461,7 @@ const styles = StyleSheet.create({
     fontSize: 28,
     fontWeight: '700',
     letterSpacing: 1.5,
+    paddingTop:10,
   },
   subtitle: {
     color: '#B0B0C4',

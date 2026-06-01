@@ -210,7 +210,7 @@ export default function LoginScreen() {
               <Animated.View style={[styles.mouth, { transform: [{ scaleX: mouthScaleX }, { scaleY: mouthScaleY }] }]} />
             </View>
             <ThemedText style={styles.title}>LifeLens</ThemedText>
-            <ThemedText style={styles.subtitle}>Your AI Daily Activity Journal</ThemedText>
+            <ThemedText style={styles.subtitle}>Your Daily Life Insights...</ThemedText>
           </View>
 
           <View style={styles.form}>
@@ -433,6 +433,7 @@ const styles = StyleSheet.create({
     fontSize: 32,
     fontWeight: '700',
     letterSpacing: 1.5,
+    paddingTop: 10,
   },
   subtitle: {
     color: '#B0B0C4',
