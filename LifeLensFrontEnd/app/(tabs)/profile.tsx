@@ -25,15 +25,17 @@ import { startBackgroundLocation, stopBackgroundLocation } from '@/services/back
 
 const SCREEN_HEIGHT = Dimensions.get('window').height;
 
+import { SPACING, TYPOGRAPHY, COLORS } from '@/constants/design-system';
+
 // ── Premium Dark-Mode Colors (Matching Home Screen) ──────────────────────────
-const PURPLE = '#8F66FF';
-const LIGHT_PURPLE = '#C4A8FF';
-const DARK_BG = '#080916';
-const CARD_BG = 'rgba(17, 19, 42, 0.65)';
-const GLASS_BORDER = 'rgba(255, 255, 255, 0.09)';
-const GREEN = '#34D399';
-const BLUE = '#3B82F6';
-const AMBER = '#F59E0B';
+const PURPLE = COLORS.primary;
+const LIGHT_PURPLE = COLORS.mood;
+const DARK_BG = COLORS.bg;
+const CARD_BG = COLORS.surfaceCard;
+const GLASS_BORDER = COLORS.surfaceBorder;
+const GREEN = COLORS.health;
+const BLUE = COLORS.sleep;
+const AMBER = COLORS.food;
 const RED = '#EF4444';
 
 export const SIMULATION_PRESETS = [
@@ -1610,44 +1612,37 @@ const styles = StyleSheet.create({
     backgroundColor: DARK_BG,
   },
 
-  glowCircle1: { position: 'absolute', top: 40, left: -100, width: 360, height: 360, borderRadius: 180, backgroundColor: 'rgba(143, 102, 255, 0.10)', zIndex: 0 },
-  glowCircle2: { position: 'absolute', bottom: 100, right: -120, width: 380, height: 380, borderRadius: 190, backgroundColor: 'rgba(59, 130, 246, 0.08)', zIndex: 0 },
-  glowCircle3: { position: 'absolute', top: '40%', right: -80, width: 300, height: 300, borderRadius: 150, backgroundColor: 'rgba(6, 182, 212, 0.07)', zIndex: 0 },
+  glowCircle1: { position: 'absolute', top: 40, left: -100, width: 360, height: 360, borderRadius: 180, backgroundColor: 'rgba(143, 102, 255, 0.04)', zIndex: 0 },
+  glowCircle2: { position: 'absolute', bottom: 100, right: -120, width: 380, height: 380, borderRadius: 190, backgroundColor: 'rgba(59, 130, 246, 0.03)', zIndex: 0 },
+  glowCircle3: { position: 'absolute', top: '40%', right: -80, width: 300, height: 300, borderRadius: 150, backgroundColor: 'rgba(6, 182, 212, 0.02)', zIndex: 0 },
 
   container: {
     flex: 1,
   },
   content: {
-    paddingHorizontal: 20,
+    paddingHorizontal: SPACING.xl,
     paddingTop: 60,
     paddingBottom: 130,
-    gap: 20,
+    gap: SPACING.lg,
   },
   header: {
     marginBottom: 10,
     zIndex: 1,
   },
   headerTitle: {
-    fontSize: 28,
-    fontWeight: '800',
+    ...TYPOGRAPHY.title,
     color: '#FFF',
-    lineHeight: 36,
     paddingTop: 6,
   },
   profileCard: {
     flexDirection: 'row',
     alignItems: 'center',
-    padding: 20,
-    borderRadius: 20,
+    padding: SPACING.lg,
+    borderRadius: 16,
     backgroundColor: CARD_BG,
     borderWidth: 1,
     borderColor: GLASS_BORDER,
     gap: 16,
-    shadowColor: '#8F66FF',
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.05,
-    shadowRadius: 16,
-    elevation: 3,
     ...Platform.select({
       web: {
         backdropFilter: 'blur(20px)',
@@ -1658,15 +1653,18 @@ const styles = StyleSheet.create({
     }),
   },
   avatar: {
-    width: 68,
-    height: 68,
-    borderRadius: 34,
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    backgroundColor: 'rgba(255, 255, 255, 0.03)',
+    borderWidth: 1,
+    borderColor: GLASS_BORDER,
     justifyContent: 'center',
     alignItems: 'center',
   },
   avatarText: {
-    color: '#fff',
-    fontSize: 24,
+    color: PURPLE,
+    fontSize: 20,
     fontWeight: '700',
   },
   userInfo: {
@@ -1674,45 +1672,39 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   username: {
-    fontSize: 20,
+    fontSize: 18,
     fontWeight: '700',
     color: '#FFF',
   },
   email: {
-    fontSize: 14,
-    opacity: 0.6,
-    color: '#FFF',
+    fontSize: 13,
+    color: COLORS.textMuted,
     marginTop: 2,
   },
   sectionTitle: {
-    fontSize: 16,
-    fontWeight: '700',
-    opacity: 0.6,
-    color: '#FFF',
-    marginTop: 15,
-    marginBottom: 2,
+    fontSize: 11.5,
+    fontWeight: '800',
+    opacity: 0.8,
+    color: COLORS.primary,
+    marginTop: SPACING.md,
+    marginBottom: SPACING.xs,
     textTransform: 'uppercase',
-    letterSpacing: 0.5,
+    letterSpacing: 0.8,
     zIndex: 1,
   },
   statsGrid: {
     flexDirection: 'row',
-    gap: 12,
+    gap: SPACING.sm,
   },
   statBox: {
     flex: 1,
-    padding: 16,
-    borderRadius: 18,
+    padding: SPACING.md,
+    borderRadius: 14,
     backgroundColor: CARD_BG,
     borderWidth: 1,
     borderColor: GLASS_BORDER,
     alignItems: 'center',
-    gap: 6,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.03,
-    shadowRadius: 8,
-    elevation: 1,
+    gap: SPACING.xs,
     ...Platform.select({
       web: {
         backdropFilter: 'blur(15px)',
@@ -1723,26 +1715,21 @@ const styles = StyleSheet.create({
     }),
   },
   statVal: {
-    fontSize: 18,
+    fontSize: 16,
     fontWeight: '700',
     color: '#FFF',
   },
   statLabel: {
-    fontSize: 12,
-    opacity: 0.6,
-    color: '#FFF',
+    fontSize: 11,
+    color: COLORS.textMuted,
+    fontWeight: '600',
   },
   settingsList: {
-    borderRadius: 18,
+    borderRadius: 14,
     backgroundColor: CARD_BG,
     borderWidth: 1,
     borderColor: GLASS_BORDER,
-    paddingHorizontal: 16,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.04,
-    shadowRadius: 12,
-    elevation: 2,
+    paddingHorizontal: SPACING.lg,
     ...Platform.select({
       web: {
         backdropFilter: 'blur(20px)',
@@ -1755,30 +1742,30 @@ const styles = StyleSheet.create({
   settingsRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: 14,
-    gap: 12,
+    paddingVertical: SPACING.md,
+    gap: SPACING.sm,
   },
   settingsLabel: {
-    fontSize: 16,
+    fontSize: 14,
     fontWeight: '600',
     color: '#FFF',
     flex: 1,
   },
   settingsSubtitle: {
-    fontSize: 12,
-    opacity: 0.5,
-    color: '#FFF',
+    fontSize: 11.5,
+    color: COLORS.textMuted,
     marginTop: 2,
   },
   divider: {
     height: 1,
-    backgroundColor: 'rgba(255, 255, 255, 0.08)',
+    backgroundColor: 'rgba(255, 255, 255, 0.04)',
   },
   logoutBtn: {
     flexDirection: 'row',
-    height: 52,
-    borderWidth: 1.5,
-    borderRadius: 14,
+    height: 44,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.1)',
+    borderRadius: 10,
     justifyContent: 'center',
     alignItems: 'center',
     marginTop: 10,
@@ -1788,8 +1775,9 @@ const styles = StyleSheet.create({
     marginRight: 4,
   },
   logoutBtnText: {
-    fontSize: 16,
+    fontSize: 14,
     fontWeight: '700',
+    color: '#fff',
   },
 
   // Absolute Position Overlay Styles (Replacing Modals)

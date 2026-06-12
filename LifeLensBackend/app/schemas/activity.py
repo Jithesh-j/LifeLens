@@ -28,6 +28,21 @@ class ActivityCreate(BaseModel):
     )
 
 
+class ActivityUpdate(BaseModel):
+    """Update an existing activity."""
+
+    content: str | None = Field(
+        default=None,
+        min_length=1,
+        max_length=5000,
+        description="Updated text description of the activity",
+    )
+    category: str | None = Field(default=None, description="Updated activity category")
+    mood: str | None = Field(default=None, description="Updated activity mood")
+    tags: str | None = Field(default=None, description="Updated comma-separated tags")
+    logged_at: datetime | None = Field(default=None, description="Updated activity datetime")
+
+
 class ActivitySearchQuery(BaseModel):
     """Semantic search across activities."""
 

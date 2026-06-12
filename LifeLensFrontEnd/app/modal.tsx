@@ -20,6 +20,7 @@ import { useThemeColor } from '@/hooks/use-theme-color';
 import { IconSymbol } from '@/components/ui/icon-symbol';
 import { api, ActivityResponse } from '@/services/api';
 import { useSchedule, parseNotesToEvents, ScheduleItem, getTodayDateStr } from '@/context/schedule';
+import { SPACING, TYPOGRAPHY, COLORS } from '@/constants/design-system';
 
 const detectTaskFromText = (text: string): string => {
   if (!text) return 'None detected';
@@ -88,11 +89,11 @@ export default function AddNoteModal() {
   const [isPlaybackPlaying, setIsPlaybackPlaying] = useState(false);
 
   // Themes & Styling colors
-  const primaryColor = '#8F66FF';
+  const primaryColor = COLORS.primary;
   const navyHeaderColor = 'rgba(15, 17, 34, 0.65)';
-  const accentGreen = '#34D399';
-  const cardBg = 'rgba(17, 19, 42, 0.65)';
-  const textColor = '#FFF';
+  const accentGreen = COLORS.health;
+  const cardBg = COLORS.surfaceCard;
+  const textColor = COLORS.text;
 
   // Sync state when content changes for the standard pre-populated blueprint mock hints
   const [hints, setHints] = useState<Array<{ text: string; color: string; bg: string }>>([]);
@@ -548,6 +549,18 @@ export default function AddNoteModal() {
     setExtractedEvents((prev) => [...prev, newEv]);
   };
 
+  // Cancel extraction and close modal
+  const handleCancel = async () => {
+    if (aiResponse?.id) {
+      try {
+        await api.deleteActivity(aiResponse.id);
+      } catch (err) {
+        console.error('Failed to clean up unconfirmed activity:', err);
+      }
+    }
+    router.dismiss();
+  };
+
   // Extract Details Action (Type mode)
   const handleExtractAndReview = async () => {
     if (!content.trim()) {
@@ -560,7 +573,12 @@ export default function AddNoteModal() {
       const parsedEvents = parseNotesToEvents(content, targetDate);
       setExtractedEvents(parsedEvents);
 
-      const response = await api.createActivity(content, `${targetDate}T12:00:00`);
+      let response;
+      if (aiResponse?.id) {
+        response = await api.updateActivity(aiResponse.id, { content });
+      } else {
+        response = await api.createActivity(content, `${targetDate}T12:00:00`);
+      }
       setAiResponse(response);
 
       setEditedCategory(response.category || 'other');
@@ -595,7 +613,12 @@ export default function AddNoteModal() {
       const parsedEvents = parseNotesToEvents(voiceTranscript, targetDate);
       setExtractedEvents(parsedEvents);
 
-      const response = await api.createActivity(voiceTranscript, `${targetDate}T12:00:00`);
+      let response;
+      if (aiResponse?.id) {
+        response = await api.updateActivity(aiResponse.id, { content: voiceTranscript });
+      } else {
+        response = await api.createActivity(voiceTranscript, `${targetDate}T12:00:00`);
+      }
       setAiResponse(response);
 
       setEditedCategory(response.category || 'other');
@@ -619,8 +642,18 @@ export default function AddNoteModal() {
   };
 
   // Final Confirmation & Save (from Review Sheet)
-  const handleConfirmSave = () => {
-    const finalContent = activeTab === 'type' ? content : voiceTranscript;
+  const handleConfirmSave = async () => {
+    // Reconstruct the note content from the remaining approved events
+    const reconstructedContent = extractedEvents && extractedEvents.length > 0
+      ? extractedEvents
+          .map((ev) => {
+            let desc = `${ev.title}`;
+            if (ev.timeRange) desc += ` at ${ev.timeRange}`;
+            if (ev.location?.name) desc += ` at ${ev.location.name}`;
+            return desc;
+          })
+          .join('. ')
+      : 'No events logged';
     
     // Save structured audio details alongside timeline
     let audioDetails = undefined;
@@ -632,7 +665,20 @@ export default function AddNoteModal() {
       };
     }
 
-    addNoteAndExtract(finalContent, targetDate, extractedEvents, audioDetails);
+    if (aiResponse?.id) {
+      try {
+        await api.updateActivity(aiResponse.id, {
+          content: reconstructedContent,
+          category: editedCategory,
+          mood: editedMood,
+          tags: editedTags,
+        });
+      } catch (err) {
+        console.error('Failed to update activity on backend:', err);
+      }
+    }
+
+    addNoteAndExtract(reconstructedContent, targetDate, extractedEvents, audioDetails);
     setShowReview(false);
     router.dismiss();
   };
@@ -659,7 +705,7 @@ export default function AddNoteModal() {
           {/* Calm Premium Navy Header */}
           <View style={[styles.headerSection, { backgroundColor: navyHeaderColor }]}>
             <View style={styles.headerTopBar}>
-              <TouchableOpacity onPress={() => router.dismiss()} style={styles.backBtn}>
+              <TouchableOpacity onPress={handleCancel} style={styles.backBtn}>
                 <ThemedText style={{ color: '#fff', fontSize: 16 }}>Cancel</ThemedText>
               </TouchableOpacity>
               <ThemedText style={styles.appName}>AuraJournal</ThemedText>
@@ -972,22 +1018,22 @@ export default function AddNoteModal() {
                         {/* Badges and tags */}
                         <View style={styles.eventReviewCardFooter}>
                           {event.isAiExtracted ? (
-                            <View style={[styles.badge, { backgroundColor: isLowConfidence ? '#FFEBEE' : '#E8F5E9' }]}>
+                            <View style={[styles.badge, { backgroundColor: isLowConfidence ? 'rgba(239, 68, 68, 0.1)' : 'rgba(16, 185, 129, 0.1)' }]}>
                               <IconSymbol 
                                 size={12} 
                                 name={isLowConfidence ? "exclamationmark.circle.fill" : "checkmark.circle.fill"} 
-                                color={isLowConfidence ? '#D32F2F' : '#2E7D32'} 
+                                color={isLowConfidence ? '#EF4444' : '#10B981'} 
                                 style={{ marginRight: 4 }} 
                               />
-                              <ThemedText style={[styles.badgeText, { color: isLowConfidence ? '#D32F2F' : '#2E7D32' }]}>
+                              <ThemedText style={[styles.badgeText, { color: isLowConfidence ? '#EF4444' : '#10B981' }]}>
                                 {isLowConfidence 
                                   ? 'Needs Review' 
                                   : `AI Extracted (${Math.round((event.confidence ?? 0.95) * 100)}%)`}
                               </ThemedText>
                             </View>
                           ) : (
-                            <View style={[styles.badge, { backgroundColor: '#E3F2FD' }]}>
-                              <ThemedText style={[styles.badgeText, { color: '#1565C0' }]}>Manually Added</ThemedText>
+                            <View style={[styles.badge, { backgroundColor: 'rgba(59, 130, 246, 0.1)' }]}>
+                              <ThemedText style={[styles.badgeText, { color: '#3B82F6' }]}>Manually Added</ThemedText>
                             </View>
                           )}
 
@@ -1069,7 +1115,6 @@ export default function AddNoteModal() {
                 </View>
               </View>
 
-              {/* Confirm & Save Button */}
               <TouchableOpacity
                 style={[styles.confirmBtn, { backgroundColor: primaryColor }]}
                 onPress={handleConfirmSave}>
@@ -1093,39 +1138,26 @@ export default function AddNoteModal() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#080916',
+    backgroundColor: COLORS.bg,
   },
-  glowCircle1: { position: 'absolute', top: 40, left: -100, width: 360, height: 360, borderRadius: 180, backgroundColor: 'rgba(143, 102, 255, 0.08)', zIndex: 0 },
-  glowCircle2: { position: 'absolute', bottom: 100, right: -120, width: 380, height: 380, borderRadius: 190, backgroundColor: 'rgba(59, 130, 246, 0.06)', zIndex: 0 },
-  glowCircle3: { position: 'absolute', top: '40%', right: -80, width: 300, height: 300, borderRadius: 150, backgroundColor: 'rgba(6, 182, 212, 0.05)', zIndex: 0 },
+  glowCircle1: { position: 'absolute', top: 40, left: -100, width: 360, height: 360, borderRadius: 180, backgroundColor: 'rgba(143, 102, 255, 0.04)', zIndex: 0 },
+  glowCircle2: { position: 'absolute', bottom: 100, right: -120, width: 380, height: 380, borderRadius: 190, backgroundColor: 'rgba(59, 130, 246, 0.03)', zIndex: 0 },
+  glowCircle3: { position: 'absolute', top: '40%', right: -80, width: 300, height: 300, borderRadius: 150, backgroundColor: 'rgba(6, 182, 212, 0.02)', zIndex: 0 },
 
   scrollContent: {
     flexGrow: 1,
-    backgroundColor: '#080916',
+    backgroundColor: COLORS.bg,
     paddingBottom: 40,
   },
   headerSection: {
     paddingTop: Platform.OS === 'ios' ? 44 : 56,
-    paddingHorizontal: 20,
-    paddingBottom: 20,
-    borderBottomLeftRadius: 28,
-    borderBottomRightRadius: 28,
-    borderBottomWidth: 1.2,
-    borderBottomColor: 'rgba(255, 255, 255, 0.06)',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.12,
-    shadowRadius: 12,
-    elevation: 3,
+    paddingHorizontal: SPACING.xl,
+    paddingBottom: SPACING.lg,
+    borderBottomLeftRadius: 24,
+    borderBottomRightRadius: 24,
+    borderBottomWidth: 1,
+    borderBottomColor: COLORS.surfaceBorder,
     backgroundColor: 'rgba(17, 19, 42, 0.4)',
-    ...Platform.select({
-      web: {
-        backdropFilter: 'blur(20px)',
-        // @ts-ignore
-        experimental_backdropFilter: 'blur(20px)',
-      },
-      default: {},
-    }),
   },
   headerTopBar: {
     flexDirection: 'row',
@@ -1135,22 +1167,24 @@ const styles = StyleSheet.create({
     zIndex: 1,
   },
   backBtn: {
-    paddingVertical: 8,
+    paddingVertical: 6,
     paddingHorizontal: 12,
-    borderRadius: 10,
-    backgroundColor: 'rgba(255, 255, 255, 0.05)',
+    borderRadius: 8,
+    backgroundColor: 'rgba(255, 255, 255, 0.03)',
+    borderWidth: 1,
+    borderColor: COLORS.surfaceBorder,
   },
   appName: {
     color: '#fff',
-    fontSize: 16,
+    fontSize: 14,
     fontWeight: '800',
     letterSpacing: 0.8,
     opacity: 0.8,
   },
   magicIcon: {
-    padding: 8,
-    borderRadius: 20,
-    backgroundColor: 'rgba(143, 102, 255, 0.12)',
+    padding: 6,
+    borderRadius: 14,
+    backgroundColor: 'rgba(143, 102, 255, 0.08)',
   },
   headerInfo: {
     marginTop: 16,
@@ -1158,49 +1192,43 @@ const styles = StyleSheet.create({
   },
   headerTitle: {
     color: '#fff',
-    fontSize: 26,
-    fontWeight: '900',
-    letterSpacing: -0.2,
+    ...TYPOGRAPHY.title,
   },
   headerSubtitle: {
-    color: '#B0B0C4',
-    fontSize: 13,
-    lineHeight: 18,
+    color: COLORS.textMuted,
+    fontSize: 12.5,
+    lineHeight: 17,
     fontWeight: '500',
     marginTop: 6,
     opacity: 0.8,
   },
   formContainer: {
-    paddingHorizontal: 20,
-    paddingTop: 20,
-    gap: 20,
+    paddingHorizontal: SPACING.xl,
+    paddingTop: SPACING.lg,
+    gap: SPACING.lg,
   },
   toggleContainer: {
     flexDirection: 'row',
-    borderRadius: 16,
-    padding: 4,
-    height: 52,
-    borderWidth: 1.2,
-    borderColor: 'rgba(255, 255, 255, 0.06)',
-    backgroundColor: 'rgba(255, 255, 255, 0.02)',
+    borderRadius: 12,
+    padding: 3,
+    height: 46,
+    borderWidth: 1,
+    borderColor: COLORS.surfaceBorder,
+    backgroundColor: 'rgba(255, 255, 255, 0.01)',
   },
   toggleBtn: {
     flex: 1,
     flexDirection: 'row',
     justifyContent: 'center',
     alignItems: 'center',
-    borderRadius: 12,
+    borderRadius: 10,
     backgroundColor: 'transparent',
   },
   toggleActiveBtn: {
-    shadowColor: '#8F66FF',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.25,
-    shadowRadius: 8,
-    elevation: 3,
+    // shadow rules removed for enterprise simplicity
   },
   toggleText: {
-    fontSize: 14,
+    fontSize: 13.5,
     fontWeight: '700',
     opacity: 0.6,
   },
@@ -1209,29 +1237,16 @@ const styles = StyleSheet.create({
     opacity: 1,
   },
   inputBoxContainer: {
-    borderRadius: 22,
-    padding: 16,
-    borderWidth: 1.2,
-    borderColor: 'rgba(255, 255, 255, 0.06)',
-    backgroundColor: 'rgba(255, 255, 255, 0.02)',
-    shadowColor: '#8F66FF',
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.03,
-    shadowRadius: 16,
-    elevation: 2,
-    ...Platform.select({
-      web: {
-        backdropFilter: 'blur(20px)',
-        // @ts-ignore
-        experimental_backdropFilter: 'blur(20px)',
-      },
-      default: {},
-    }),
+    borderRadius: 16,
+    padding: SPACING.lg,
+    borderWidth: 1,
+    borderColor: COLORS.surfaceBorder,
+    backgroundColor: COLORS.surfaceCard,
   },
   textInput: {
-    fontSize: 15,
-    lineHeight: 22,
-    minHeight: 120,
+    fontSize: 14,
+    lineHeight: 20,
+    minHeight: 110,
     textAlignVertical: 'top',
     fontWeight: '600',
     color: '#fff',
@@ -1242,7 +1257,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginTop: 12,
     borderTopWidth: 1,
-    borderTopColor: 'rgba(255, 255, 255, 0.05)',
+    borderTopColor: 'rgba(255, 255, 255, 0.04)',
     paddingTop: 10,
   },
   inputBoxFooterLeft: {
@@ -1250,27 +1265,27 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   inputBoxHint: {
-    fontSize: 12,
+    fontSize: 11.5,
     opacity: 0.6,
   },
   charCounter: {
-    fontSize: 12,
+    fontSize: 11.5,
     opacity: 0.4,
   },
   voiceCard: {
     flexDirection: 'row',
     alignItems: 'center',
-    padding: 14,
-    borderRadius: 18,
+    padding: SPACING.md,
+    borderRadius: 14,
     gap: 12,
-    borderWidth: 1.2,
-    borderColor: 'rgba(255, 255, 255, 0.06)',
-    backgroundColor: 'rgba(255, 255, 255, 0.02)',
+    borderWidth: 1,
+    borderColor: COLORS.surfaceBorder,
+    backgroundColor: COLORS.surfaceCard,
   },
   micIconCircle: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
+    width: 40,
+    height: 40,
+    borderRadius: 20,
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -1284,17 +1299,17 @@ const styles = StyleSheet.create({
     gap: 4,
   },
   waveBar: {
-    width: 3.5,
-    borderRadius: 1.8,
+    width: 3,
+    borderRadius: 1.5,
   },
   voiceTitle: {
-    fontSize: 12,
+    fontSize: 11.5,
     fontWeight: '600',
     opacity: 0.5,
     marginTop: 2,
   },
   voiceDuration: {
-    fontSize: 13,
+    fontSize: 12.5,
     fontWeight: '700',
     opacity: 0.6,
   },
@@ -1308,13 +1323,13 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   smartHintsTitle: {
-    fontSize: 13,
+    fontSize: 12.5,
     fontWeight: '800',
     opacity: 0.6,
     letterSpacing: 0.3,
   },
   customizeBtn: {
-    fontSize: 13,
+    fontSize: 12.5,
     fontWeight: '800',
   },
   hintsGrid: {
@@ -1323,31 +1338,26 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   hintTag: {
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 10,
-    borderWidth: 1.2,
-    borderColor: 'rgba(255, 255, 255, 0.04)',
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.02)',
   },
   hintTagText: {
-    fontSize: 12,
+    fontSize: 11.5,
     fontWeight: '700',
   },
   primaryBtn: {
-    height: 54,
-    borderRadius: 16,
+    height: 46,
+    borderRadius: 12,
     justifyContent: 'center',
     alignItems: 'center',
     marginTop: 14,
-    shadowColor: '#8F66FF',
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.3,
-    shadowRadius: 12,
-    elevation: 3,
   },
   primaryBtnText: {
     color: '#fff',
-    fontSize: 15,
+    fontSize: 14,
     fontWeight: '800',
     letterSpacing: 0.3,
   },
@@ -1357,15 +1367,15 @@ const styles = StyleSheet.create({
     justifyContent: 'flex-end',
   },
   sheetContainer: {
-    borderTopLeftRadius: 32,
-    borderTopRightRadius: 32,
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
     paddingTop: 16,
-    paddingHorizontal: 20,
+    paddingHorizontal: SPACING.xl,
     paddingBottom: 40,
     maxHeight: '85%',
-    backgroundColor: '#080916',
-    borderTopWidth: 1.5,
-    borderColor: 'rgba(255, 255, 255, 0.08)',
+    backgroundColor: COLORS.bg,
+    borderTopWidth: 1,
+    borderColor: COLORS.surfaceBorder,
   },
   sheetHeader: {
     alignItems: 'center',
@@ -1373,23 +1383,23 @@ const styles = StyleSheet.create({
   },
   sheetHandle: {
     width: 36,
-    height: 4.5,
-    borderRadius: 2.2,
+    height: 4,
+    borderRadius: 2,
     backgroundColor: 'rgba(255, 255, 255, 0.15)',
     marginBottom: 14,
   },
   sheetTitle: {
-    fontSize: 18,
-    fontWeight: '900',
+    fontSize: 17,
+    fontWeight: '800',
     textAlign: 'center',
     letterSpacing: -0.2,
   },
   sheetSubtitle: {
-    fontSize: 13,
+    fontSize: 12.5,
     opacity: 0.6,
     textAlign: 'center',
     marginTop: 4,
-    lineHeight: 18,
+    lineHeight: 17,
     paddingHorizontal: 12,
   },
   sheetContent: {
@@ -1400,7 +1410,7 @@ const styles = StyleSheet.create({
     gap: 6,
   },
   reviewLabel: {
-    fontSize: 13,
+    fontSize: 12.5,
     fontWeight: '800',
     opacity: 0.6,
     letterSpacing: 0.2,
@@ -1408,36 +1418,32 @@ const styles = StyleSheet.create({
   reviewInputBox: {
     flexDirection: 'row',
     alignItems: 'center',
-    height: 48,
-    borderRadius: 14,
-    paddingHorizontal: 14,
-    borderWidth: 1.2,
-    borderColor: 'rgba(255, 255, 255, 0.06)',
+    height: 44,
+    borderRadius: 10,
+    paddingHorizontal: 12,
+    borderWidth: 1,
+    borderColor: COLORS.surfaceBorder,
   },
   reviewInput: {
     flex: 1,
-    fontSize: 14,
+    fontSize: 13.5,
     fontWeight: '600',
   },
   confirmBtn: {
     flexDirection: 'row',
-    height: 54,
-    borderRadius: 16,
+    height: 46,
+    borderRadius: 12,
     justifyContent: 'center',
     alignItems: 'center',
     marginTop: 20,
-    shadowColor: '#8F66FF',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.2,
-    shadowRadius: 10,
   },
   confirmBtnText: {
     color: '#fff',
-    fontSize: 15,
+    fontSize: 14,
     fontWeight: '800',
   },
   sheetCancelBtn: {
-    height: 48,
+    height: 44,
     justifyContent: 'center',
     alignItems: 'center',
     marginTop: 6,
@@ -1445,17 +1451,14 @@ const styles = StyleSheet.create({
 
   /* Structured Events Review Cards */
   eventReviewCard: {
-    borderRadius: 18,
-    padding: 14,
+    borderRadius: 14,
+    padding: SPACING.md,
     marginBottom: 12,
-    borderWidth: 1.2,
-    borderColor: 'rgba(255,255,255,0.06)',
+    borderWidth: 1,
+    borderColor: COLORS.surfaceBorder,
     borderLeftWidth: 4,
-    borderLeftColor: '#8F66FF',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.05,
-    shadowRadius: 8,
+    borderLeftColor: COLORS.primary,
+    backgroundColor: COLORS.surfaceCard,
   },
   eventReviewCardHeader: {
     flexDirection: 'row',
@@ -1463,7 +1466,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   eventReviewInputLabel: {
-    fontSize: 9,
+    fontSize: 8.5,
     fontWeight: '800',
     color: '#B0B0C4',
     textTransform: 'uppercase',
@@ -1472,13 +1475,13 @@ const styles = StyleSheet.create({
     opacity: 0.6,
   },
   eventReviewInput: {
-    height: 38,
-    borderRadius: 10,
-    backgroundColor: 'rgba(255, 255, 255, 0.02)',
+    height: 36,
+    borderRadius: 8,
+    backgroundColor: 'rgba(255, 255, 255, 0.01)',
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.04)',
-    paddingHorizontal: 12,
-    fontSize: 13,
+    borderColor: 'rgba(255, 255, 255, 0.03)',
+    paddingHorizontal: 10,
+    fontSize: 12.5,
     fontWeight: '600',
   },
   deleteEventBtn: {
@@ -1490,7 +1493,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginTop: 12,
     borderTopWidth: 1,
-    borderTopColor: 'rgba(255, 255, 255, 0.04)',
+    borderTopColor: 'rgba(255, 255, 255, 0.03)',
     paddingTop: 8,
   },
   badge: {
@@ -1498,93 +1501,88 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingHorizontal: 8,
     paddingVertical: 4,
-    borderRadius: 8,
+    borderRadius: 6,
   },
   badgeText: {
-    fontSize: 10,
+    fontSize: 9.5,
     fontWeight: '800',
   },
   categoryBadge: {
     paddingHorizontal: 8,
     paddingVertical: 3,
-    borderRadius: 8,
+    borderRadius: 6,
   },
   addManualBtn: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    height: 46,
-    borderRadius: 14,
-    borderWidth: 1.5,
+    height: 42,
+    borderRadius: 10,
+    borderWidth: 1,
     borderStyle: 'dashed',
+    borderColor: COLORS.surfaceBorder,
     marginTop: 8,
     marginBottom: 12,
     backgroundColor: 'rgba(255, 255, 255, 0.01)',
   },
   addManualBtnText: {
-    fontSize: 13,
+    fontSize: 12.5,
     fontWeight: '800',
   },
   emptyEventsBox: {
     alignItems: 'center',
     justifyContent: 'center',
-    height: 60,
-    borderRadius: 14,
+    height: 54,
+    borderRadius: 12,
     marginBottom: 12,
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.05)',
+    borderColor: COLORS.surfaceBorder,
+  },
+  emptyEventsText: {
+    color: COLORS.textMuted,
+    fontSize: 12,
   },
   divider: {
     height: 1,
-    backgroundColor: 'rgba(255, 255, 255, 0.05)',
+    backgroundColor: 'rgba(255, 255, 255, 0.04)',
     marginVertical: 14,
   },
 
   /* Immersive Voice Mode styles */
   voiceImmersiveContainer: {
-    borderRadius: 24,
-    paddingVertical: 36,
-    paddingHorizontal: 20,
+    borderRadius: 16,
+    paddingVertical: 32,
+    paddingHorizontal: SPACING.lg,
     alignItems: 'center',
     justifyContent: 'center',
     gap: 16,
-    borderWidth: 1.2,
-    borderColor: 'rgba(255, 255, 255, 0.06)',
-    shadowColor: '#8F66FF',
-    shadowOffset: { width: 0, height: 10 },
-    shadowOpacity: 0.04,
-    shadowRadius: 20,
-    elevation: 2,
+    borderWidth: 1,
+    borderColor: COLORS.surfaceBorder,
   },
   voiceImmersiveTitle: {
-    fontSize: 16,
-    fontWeight: '900',
+    fontSize: 15,
+    fontWeight: '800',
     textAlign: 'center',
     letterSpacing: -0.1,
   },
   voiceImmersiveDesc: {
-    fontSize: 13,
+    fontSize: 12.5,
     opacity: 0.6,
     textAlign: 'center',
     paddingHorizontal: 16,
-    lineHeight: 18,
+    lineHeight: 17,
     fontWeight: '500',
   },
   immersiveMicBtn: {
-    width: 76,
-    height: 76,
-    borderRadius: 38,
+    width: 68,
+    height: 68,
+    borderRadius: 34,
     alignItems: 'center',
     justifyContent: 'center',
     marginVertical: 16,
-    shadowColor: '#8F66FF',
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.35,
-    shadowRadius: 12,
-    elevation: 5,
   },
   immersiveTimer: {
-    fontSize: 18,
+    fontSize: 16,
     fontWeight: '800',
     letterSpacing: 0.8,
   },
@@ -1592,24 +1590,24 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    height: 60,
+    height: 52,
     gap: 5,
     marginVertical: 8,
   },
   immersiveWaveBar: {
-    width: 3.5,
-    borderRadius: 2,
+    width: 3,
+    borderRadius: 1.5,
   },
   transcriptSection: {
     gap: 8,
   },
   transcriptLabel: {
-    fontSize: 13,
+    fontSize: 12.5,
     fontWeight: '800',
     opacity: 0.6,
   },
   transcriptBox: {
-    borderColor: '#7C4DFF20',
+    borderColor: 'rgba(255,255,255,0.06)',
   },
   transcriptInput: {
     fontSize: 15,

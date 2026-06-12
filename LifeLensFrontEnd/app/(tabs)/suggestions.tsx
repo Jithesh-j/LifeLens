@@ -15,24 +15,25 @@ import { useThemeColor } from '@/hooks/use-theme-color';
 import { IconSymbol } from '@/components/ui/icon-symbol';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { api } from '@/services/api';
+import { COLORS, SPACING, TYPOGRAPHY } from '@/constants/design-system';
 
 const SCREEN_WIDTH = Dimensions.get('window').width;
 
 // ── Design Tokens ──────────────────────────────────────────────────────────────
-const PURPLE = '#8F66FF';
-const NAVY = '#080916';
-const GREEN = '#34D399';
-const BLUE = '#3B82F6';
-const AMBER = '#F59E0B';
+const PURPLE = COLORS.primary;
+const NAVY = COLORS.bg;
+const GREEN = COLORS.health;
+const BLUE = COLORS.sleep;
+const AMBER = COLORS.food;
 const RED = '#EF4444';
-const DEEP_PURPLE = 'rgba(17, 19, 42, 0.65)';
-const LIGHT_PURPLE = '#C4A8FF';
+const DEEP_PURPLE = COLORS.surfaceCard;
+const LIGHT_PURPLE = COLORS.mood;
 
 const CATEGORY_THEME: Record<string, { color: string; bg: string; label: string; icon: any }> = {
-  health: { color: GREEN, bg: 'rgba(52, 211, 153, 0.08)', label: 'Health', icon: 'gym' },
-  work: { color: PURPLE, bg: 'rgba(143, 102, 255, 0.08)', label: 'Work', icon: 'laptop' },
-  social: { color: AMBER, bg: 'rgba(245, 158, 11, 0.08)', label: 'Social', icon: 'groups' },
-  rest: { color: BLUE, bg: 'rgba(59, 130, 246, 0.08)', label: 'Rest', icon: 'rest' },
+  health: { color: GREEN, bg: COLORS.healthBg, label: 'Health', icon: 'gym' },
+  work: { color: PURPLE, bg: COLORS.productivityBg, label: 'Work', icon: 'laptop' },
+  social: { color: AMBER, bg: COLORS.foodBg, label: 'Social', icon: 'groups' },
+  rest: { color: BLUE, bg: COLORS.sleepBg, label: 'Rest', icon: 'rest' },
   other: { color: '#94A3B8', bg: 'rgba(148, 163, 184, 0.08)', label: 'Other', icon: 'rest' },
 };
 
@@ -1104,43 +1105,43 @@ export default function InsightsScreen() {
 // ═══════════════════════════════════════════════════════════════════════════════
 
 const chartStyles = StyleSheet.create({
-  barChartContainer: { marginTop: 8 },
+  barChartContainer: { marginTop: SPACING.sm },
   barRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-end', flex: 1 },
   barCol: { alignItems: 'center', flex: 1 },
-  barTrack: { justifyContent: 'flex-end', width: 18, borderRadius: 9 },
-  barFill: { width: 18, borderRadius: 9 },
-  barLabel: { color: '#FFF', fontSize: 10, fontWeight: '600', opacity: 0.45, marginTop: 6 },
+  barTrack: { justifyContent: 'flex-end', width: 14, borderRadius: 7, backgroundColor: 'rgba(255, 255, 255, 0.02)' },
+  barFill: { width: 14, borderRadius: 7 },
+  barLabel: { color: COLORS.textMuted, fontSize: 10, fontWeight: '600', marginTop: SPACING.xs },
 
-  lineChartContainer: { marginTop: 8, position: 'relative' },
+  lineChartContainer: { marginTop: SPACING.sm, position: 'relative' },
   lineArea: { position: 'relative' },
-  gridLine: { position: 'absolute', left: 0, right: 0, height: 1, backgroundColor: '#8E8E9310' },
-  dataDot: { position: 'absolute', width: 10, height: 10, borderRadius: 5, borderWidth: 2 },
-  connectLine: { position: 'absolute', height: 2, borderRadius: 1 },
-  lineLabels: { flexDirection: 'row', marginTop: 8 },
-  lineLabel: { color: '#FFF', fontSize: 10, fontWeight: '600', opacity: 0.45, textAlign: 'center' },
+  gridLine: { position: 'absolute', left: 0, right: 0, height: 1, backgroundColor: 'rgba(255, 255, 255, 0.03)' },
+  dataDot: { position: 'absolute', width: 8, height: 8, borderRadius: 4, borderWidth: 1.5, borderColor: COLORS.bg },
+  connectLine: { position: 'absolute', height: 1.5, borderRadius: 0.75 },
+  lineLabels: { flexDirection: 'row', marginTop: SPACING.xs },
+  lineLabel: { color: COLORS.textMuted, fontSize: 10, fontWeight: '600', textAlign: 'center' },
 });
 
 const s = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#080916' },
+  container: { flex: 1, backgroundColor: COLORS.bg },
 
-  glowCircle1: { position: 'absolute', top: 40, left: -100, width: 360, height: 360, borderRadius: 180, backgroundColor: 'rgba(143, 102, 255, 0.10)', zIndex: 0 },
-  glowCircle2: { position: 'absolute', bottom: 100, right: -120, width: 380, height: 380, borderRadius: 190, backgroundColor: 'rgba(59, 130, 246, 0.08)', zIndex: 0 },
-  glowCircle3: { position: 'absolute', top: '40%', right: -80, width: 300, height: 300, borderRadius: 150, backgroundColor: 'rgba(6, 182, 212, 0.07)', zIndex: 0 },
+  glowCircle1: { position: 'absolute', top: 20, left: -80, width: 340, height: 340, borderRadius: 170, backgroundColor: 'rgba(143, 102, 255, 0.05)', zIndex: 0 },
+  glowCircle2: { position: 'absolute', bottom: 60, right: -100, width: 360, height: 360, borderRadius: 180, backgroundColor: 'rgba(59, 130, 246, 0.04)', zIndex: 0 },
+  glowCircle3: { position: 'absolute', top: '35%', right: -60, width: 280, height: 280, borderRadius: 140, backgroundColor: 'rgba(6, 182, 212, 0.03)', zIndex: 0 },
 
   // Header
   header: {
-    backgroundColor: 'rgba(17, 19, 42, 0.65)',
-    paddingHorizontal: 20,
-    paddingBottom: 22,
-    borderBottomLeftRadius: 32,
-    borderBottomRightRadius: 32,
-    borderBottomWidth: 1.2,
-    borderBottomColor: 'rgba(255, 255, 255, 0.08)',
+    backgroundColor: 'rgba(11, 12, 28, 0.45)',
+    paddingHorizontal: SPACING.xl,
+    paddingBottom: SPACING.lg,
+    borderBottomLeftRadius: 24,
+    borderBottomRightRadius: 24,
+    borderBottomWidth: 1,
+    borderBottomColor: COLORS.surfaceBorder,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.05,
-    shadowRadius: 10,
-    elevation: 3,
+    shadowOpacity: 0.15,
+    shadowRadius: 8,
+    elevation: 4,
     ...Platform.select({
       web: {
         backdropFilter: 'blur(20px)',
@@ -1150,165 +1151,113 @@ const s = StyleSheet.create({
       default: {},
     }),
   },
-  headerTopRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 20 },
-  headerTitle: { color: '#fff', fontSize: 28, fontWeight: '800', letterSpacing: -0.3, lineHeight: 36, paddingTop: 6 },
-  headerSub: { color: '#B0B0C4', fontSize: 13, fontWeight: '500', marginTop: 4 },
-  headerAiBadge: { width: 44, height: 44, borderRadius: 22, justifyContent: 'center', alignItems: 'center' },
-  tabRow: { flexDirection: 'row', gap: 10 },
-  tabChip: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 10, borderRadius: 14 },
-  tabChipText: { fontSize: 13, fontWeight: '700' },
+  headerTopRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: SPACING.lg },
+  headerTitle: { color: COLORS.text, fontSize: 24, fontWeight: '800', letterSpacing: -0.4, lineHeight: 30, paddingTop: 4 },
+  headerSub: { color: COLORS.textMuted, ...TYPOGRAPHY.body, fontSize: 12.5, marginTop: 2 },
+  headerAiBadge: { width: 38, height: 38, borderRadius: 19, justifyContent: 'center', alignItems: 'center' },
+  tabRow: { flexDirection: 'row', gap: SPACING.sm },
+  tabChip: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 14, paddingVertical: 8, borderRadius: 10 },
+  tabChipText: { fontSize: 12.5, fontWeight: '700' },
 
-  scrollContent: { paddingHorizontal: 20, paddingTop: 22, paddingBottom: 130, gap: 16 },
+  scrollContent: { paddingHorizontal: SPACING.xl, paddingTop: SPACING.lg, paddingBottom: 120, gap: SPACING.lg },
 
   // Metric strip
-  metricsStrip: { flexDirection: 'row', gap: 10 },
+  metricsStrip: { flexDirection: 'row', gap: SPACING.sm },
   metricCard: {
     flex: 1,
-    padding: 14,
-    borderRadius: 18,
+    padding: SPACING.md,
+    borderRadius: 14,
     alignItems: 'center',
-    gap: 6,
-    backgroundColor: DEEP_PURPLE,
+    gap: 4,
+    backgroundColor: COLORS.surfaceCard,
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.08)',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.04,
-    shadowRadius: 6,
-    elevation: 1,
-    ...Platform.select({
-      web: {
-        backdropFilter: 'blur(15px)',
-        // @ts-ignore
-        experimental_backdropFilter: 'blur(15px)',
-      },
-      default: {},
-    }),
+    borderColor: COLORS.surfaceBorder,
   },
-  metricValue: { color: '#FFF', fontSize: 18, fontWeight: '800' },
-  metricLabel: { color: '#FFF', fontSize: 10, fontWeight: '600', opacity: 0.45 },
+  metricValue: { color: COLORS.text, fontSize: 16, fontWeight: '800' },
+  metricLabel: { color: COLORS.textMuted, fontSize: 9.5, fontWeight: '600' },
 
   // Chart card
   chartCard: {
-    borderRadius: 22,
-    padding: 20,
+    borderRadius: 16,
+    padding: SPACING.lg,
     overflow: 'hidden',
-    backgroundColor: DEEP_PURPLE,
+    backgroundColor: COLORS.surfaceCard,
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.08)',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.05,
-    shadowRadius: 8,
-    elevation: 2,
-    ...Platform.select({
-      web: {
-        backdropFilter: 'blur(20px)',
-        // @ts-ignore
-        experimental_backdropFilter: 'blur(20px)',
-      },
-      default: {},
-    }),
+    borderColor: COLORS.surfaceBorder,
   },
-  chartHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 8 },
-  chartTitle: { color: '#FFF', fontSize: 17, fontWeight: '800', letterSpacing: -0.2 },
-  chartSubtitle: { color: '#FFF', fontSize: 12, opacity: 0.45, fontWeight: '500', marginTop: 2 },
-  aiBadge: { width: 28, height: 28, borderRadius: 14, justifyContent: 'center', alignItems: 'center' },
+  chartHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: SPACING.sm },
+  chartTitle: { color: COLORS.text, ...TYPOGRAPHY.header, fontSize: 14.5, fontWeight: '700', letterSpacing: -0.1 },
+  chartSubtitle: { color: COLORS.textMuted, fontSize: 11.5, fontWeight: '500', marginTop: 1 },
+  aiBadge: { width: 24, height: 24, borderRadius: 12, justifyContent: 'center', alignItems: 'center' },
 
   // Category breakdown
-  categoryList: { gap: 12, marginTop: 12 },
+  categoryList: { gap: 10, marginTop: SPACING.sm },
   categoryRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
-  categoryLeft: { flexDirection: 'row', alignItems: 'center', width: 70, gap: 8 },
-  categoryDot: { width: 8, height: 8, borderRadius: 4 },
-  categoryLabel: { color: '#FFF', fontSize: 12, fontWeight: '600', opacity: 0.7 },
-  categoryBarTrack: { flex: 1, height: 8, borderRadius: 4, backgroundColor: '#8E8E9310' },
-  categoryBarFill: { height: 8, borderRadius: 4 },
-  categoryPct: { fontSize: 12, fontWeight: '700', width: 36, textAlign: 'right' },
-  ringRow: { flexDirection: 'row', justifyContent: 'space-around', marginTop: 20 },
+  categoryLeft: { flexDirection: 'row', alignItems: 'center', width: 68, gap: 6 },
+  categoryDot: { width: 6, height: 6, borderRadius: 3 },
+  categoryLabel: { color: COLORS.text, fontSize: 11.5, fontWeight: '600', opacity: 0.8 },
+  categoryBarTrack: { flex: 1, height: 6, borderRadius: 3, backgroundColor: 'rgba(255, 255, 255, 0.02)' },
+  categoryBarFill: { height: 6, borderRadius: 3 },
+  categoryPct: { fontSize: 11.5, fontWeight: '700', width: 32, textAlign: 'right' },
+  ringRow: { flexDirection: 'row', justifyContent: 'space-around', marginTop: SPACING.lg },
 
   // Correlations
-  correlationItem: { flexDirection: 'row', gap: 14, paddingVertical: 14, borderTopWidth: 1, borderTopColor: '#8E8E9310' },
-  corrIcon: { width: 40, height: 40, borderRadius: 12, justifyContent: 'center', alignItems: 'center', marginTop: 2 },
+  correlationItem: { flexDirection: 'row', gap: 12, paddingVertical: SPACING.md, borderTopWidth: 1, borderTopColor: 'rgba(255, 255, 255, 0.04)' },
+  corrIcon: { width: 34, height: 34, borderRadius: 10, justifyContent: 'center', alignItems: 'center', marginTop: 2 },
   corrContent: { flex: 1 },
-  corrTitle: { color: '#FFF', fontSize: 14, fontWeight: '700', marginBottom: 4 },
-  corrDesc: { color: '#FFF', fontSize: 12, opacity: 0.6, lineHeight: 18, fontWeight: '500' },
-  confidenceRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 8 },
-  confidenceTrack: { flex: 1, height: 4, borderRadius: 2, backgroundColor: '#8E8E9312' },
-  confidenceFill: { height: 4, borderRadius: 2 },
-  confidenceText: { fontSize: 11, fontWeight: '700', width: 32 },
+  corrTitle: { color: COLORS.text, ...TYPOGRAPHY.header, fontSize: 13.5, fontWeight: '700', marginBottom: 2 },
+  corrDesc: { color: COLORS.textMuted, ...TYPOGRAPHY.body, fontSize: 12, lineHeight: 17 },
+  confidenceRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: SPACING.xs },
+  confidenceTrack: { flex: 1, height: 3, borderRadius: 1.5, backgroundColor: 'rgba(255, 255, 255, 0.02)' },
+  confidenceFill: { height: 3, borderRadius: 1.5 },
+  confidenceText: { fontSize: 10, fontWeight: '700', width: 28 },
 
   // Suggestions tab
-  suggestionsHeader: { flexDirection: 'row', alignItems: 'center', gap: 14, marginBottom: 4 },
-  suggestionsHeaderIcon: { width: 48, height: 48, borderRadius: 16, justifyContent: 'center', alignItems: 'center' },
-  suggestionsHeaderTitle: { color: '#FFF', fontSize: 17, fontWeight: '800', letterSpacing: -0.2 },
-  suggestionsHeaderSub: { color: '#FFF', fontSize: 12, opacity: 0.45, fontWeight: '500', marginTop: 2 },
+  suggestionsHeader: { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: SPACING.xs },
+  suggestionsHeaderIcon: { width: 38, height: 38, borderRadius: 12, justifyContent: 'center', alignItems: 'center' },
+  suggestionsHeaderTitle: { color: COLORS.text, ...TYPOGRAPHY.header, fontSize: 14.5, fontWeight: '700' },
+  suggestionsHeaderSub: { color: COLORS.textMuted, fontSize: 11.5, fontWeight: '500', marginTop: 1 },
   suggestionCard: {
-    borderRadius: 20,
-    padding: 18,
-    backgroundColor: DEEP_PURPLE,
+    borderRadius: 16,
+    padding: SPACING.lg,
+    backgroundColor: COLORS.surfaceCard,
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.08)',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 6,
-    elevation: 1,
-    ...Platform.select({
-      web: {
-        backdropFilter: 'blur(20px)',
-        // @ts-ignore
-        experimental_backdropFilter: 'blur(20px)',
-      },
-      default: {},
-    }),
+    borderColor: COLORS.surfaceBorder,
   },
-  suggCardTop: { flexDirection: 'row', gap: 14, alignItems: 'flex-start' },
-  suggIcon: { width: 44, height: 44, borderRadius: 14, justifyContent: 'center', alignItems: 'center', marginTop: 2 },
-  suggText: { fontSize: 14, fontWeight: '700', lineHeight: 20, letterSpacing: -0.1 },
-  suggMeta: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 10, alignItems: 'center' },
-  suggTimeBadge: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 10, paddingVertical: 4, borderRadius: 10, flexShrink: 1 },
-  suggTimeText: { fontSize: 10, fontWeight: '700', flexShrink: 1 },
-  suggAiBadge: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 10 },
-  suggExpanded: { marginTop: 14, marginLeft: 58 },
-  suggDivider: { height: 1, marginBottom: 12 },
-  suggExpandLabel: { color: '#FFF', fontSize: 10, fontWeight: '800', letterSpacing: 0.8, opacity: 0.35, marginBottom: 4 },
-  suggExpandValue: { color: '#FFF', fontSize: 13, lineHeight: 19, opacity: 0.65, fontWeight: '500' },
+  suggCardTop: { flexDirection: 'row', gap: 12, alignItems: 'flex-start' },
+  suggIcon: { width: 36, height: 36, borderRadius: 10, justifyContent: 'center', alignItems: 'center', marginTop: 2 },
+  suggText: { fontSize: 13.5, fontWeight: '700', lineHeight: 18, letterSpacing: -0.1 },
+  suggMeta: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginTop: SPACING.sm, alignItems: 'center' },
+  suggTimeBadge: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 8, paddingVertical: 3, borderRadius: 6, flexShrink: 1 },
+  suggTimeText: { fontSize: 9.5, fontWeight: '700', flexShrink: 1 },
+  suggAiBadge: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 8, paddingVertical: 3, borderRadius: 6 },
+  suggExpanded: { marginTop: SPACING.md, marginLeft: 48 },
+  suggDivider: { height: 1, marginBottom: SPACING.md },
+  suggExpandLabel: { color: COLORS.textMuted, fontSize: 8.5, fontWeight: '800', letterSpacing: 0.8, opacity: 0.5, marginBottom: 4 },
+  suggExpandValue: { color: COLORS.text, fontSize: 12.5, lineHeight: 17, fontWeight: '500' },
 
   // Trends tab
-  trendBadge: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 10, paddingVertical: 5, borderRadius: 10, alignSelf: 'flex-start' },
-  hourGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginTop: 12 },
+  trendBadge: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 8, paddingVertical: 3, borderRadius: 6, alignSelf: 'flex-start' },
+  hourGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 5, marginTop: SPACING.md },
   hourCell: { alignItems: 'center', gap: 4 },
-  hourBlock: { width: 28, height: 28, borderRadius: 8 },
+  hourBlock: { width: 22, height: 22, borderRadius: 6 },
   hourLabel: { fontSize: 8, fontWeight: '600', opacity: 0.4 },
-  trendSummaryRow: { flexDirection: 'row', gap: 12 },
+  trendSummaryRow: { flexDirection: 'row', gap: 10 },
   trendSummaryCard: {
     flex: 1,
-    padding: 16,
-    borderRadius: 20,
+    padding: SPACING.md,
+    borderRadius: 16,
     alignItems: 'center',
-    gap: 8,
-    backgroundColor: DEEP_PURPLE,
+    gap: 4,
+    backgroundColor: COLORS.surfaceCard,
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.08)',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.04,
-    shadowRadius: 6,
-    elevation: 1,
-    ...Platform.select({
-      web: {
-        backdropFilter: 'blur(15px)',
-        // @ts-ignore
-        experimental_backdropFilter: 'blur(15px)',
-      },
-      default: {},
-    }),
+    borderColor: COLORS.surfaceBorder,
   },
-  trendSummaryIcon: { width: 40, height: 40, borderRadius: 14, justifyContent: 'center', alignItems: 'center' },
-  trendSummaryValue: { color: '#FFF', fontSize: 20, fontWeight: '800' },
-  trendSummaryLabel: { color: '#FFF', fontSize: 11, fontWeight: '600', opacity: 0.45 },
+  trendSummaryIcon: { width: 34, height: 34, borderRadius: 10, justifyContent: 'center', alignItems: 'center' },
+  trendSummaryValue: { color: COLORS.text, fontSize: 18, fontWeight: '800' },
+  trendSummaryLabel: { color: COLORS.textMuted, fontSize: 9.5, fontWeight: '600' },
 
   // Footer
-  footer: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', marginTop: 8, paddingVertical: 8 },
-  footerText: { color: '#FFF', fontSize: 12, opacity: 0.3, fontWeight: '500' },
+  footer: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', marginTop: SPACING.lg, paddingVertical: SPACING.sm },
+  footerText: { color: COLORS.textMuted, fontSize: 11, fontWeight: '500' },
 });

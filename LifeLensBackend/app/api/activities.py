@@ -18,6 +18,7 @@ from app.schemas.activity import (
     ActivityListResponse,
     ActivityResponse,
     ActivitySearchQuery,
+    ActivityUpdate,
 )
 from app.services.activity_service import (
     create_activity,
@@ -25,6 +26,7 @@ from app.services.activity_service import (
     get_activity,
     list_activities,
     search_activities,
+    update_activity,
 )
 
 router = APIRouter(prefix="/api/activities", tags=["Activities"])
@@ -84,6 +86,27 @@ async def get_single_activity(
 ) -> ActivityResponse:
     """Get details of a specific activity."""
     result = await get_activity(db, current_user.id, activity_id)
+    if result is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Activity not found",
+        )
+    return result
+
+
+@router.put(
+    "/{activity_id}",
+    response_model=ActivityResponse,
+    summary="Update an existing activity",
+)
+async def update_existing_activity(
+    activity_id: uuid.UUID,
+    payload: ActivityUpdate,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+) -> ActivityResponse:
+    """Update an activity's content and recalculate AI fields/embeddings."""
+    result = await update_activity(db, current_user.id, activity_id, payload)
     if result is None:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,

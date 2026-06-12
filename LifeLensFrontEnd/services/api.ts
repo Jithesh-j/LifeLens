@@ -217,6 +217,46 @@ export const api = {
     return response.json();
   },
 
+  // Update Activity
+  async updateActivity(
+    activityId: string,
+    payload: {
+      content?: string;
+      category?: string;
+      mood?: string;
+      tags?: string;
+      logged_at?: string;
+    }
+  ): Promise<ActivityResponse> {
+    const headers = await this.getHeaders(true);
+    const response = await fetch(`${BASE_URL}/api/activities/${activityId}`, {
+      method: 'PUT',
+      headers,
+      body: JSON.stringify(payload),
+    });
+
+    if (!response.ok) {
+      const errData = await response.json().catch(() => ({ detail: 'Failed to update activity' }));
+      throw new Error(getErrorMessage(errData, 'Failed to update activity'));
+    }
+
+    return response.json();
+  },
+
+  // Delete Activity
+  async deleteActivity(activityId: string): Promise<void> {
+    const headers = await this.getHeaders(true);
+    const response = await fetch(`${BASE_URL}/api/activities/${activityId}`, {
+      method: 'DELETE',
+      headers,
+    });
+
+    if (!response.ok) {
+      const errData = await response.json().catch(() => ({ detail: 'Failed to delete activity' }));
+      throw new Error(getErrorMessage(errData, 'Failed to delete activity'));
+    }
+  },
+
   // Transcribe Audio using FormData
   async transcribeAudio(uri: string, filename = 'recording.mp4'): Promise<{ transcript: string }> {
     const headers = await this.getHeaders(true);

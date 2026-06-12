@@ -26,15 +26,17 @@ import * as Location from 'expo-location';
 
 const SCREEN_WIDTH = Dimensions.get('window').width;
 
+import { SPACING, TYPOGRAPHY, COLORS } from '@/constants/design-system';
+
 // ── Premium Dark-Mode Colors ────────────────────────────────────────────────
-const PURPLE = '#8F66FF';
-const LIGHT_PURPLE = '#C4A8FF';
-const DARK_BG = '#080916';
-const CARD_BG = 'rgba(17, 19, 42, 0.65)';
-const GLASS_BORDER = 'rgba(255, 255, 255, 0.09)';
-const GREEN = '#34D399';
-const BLUE = '#3B82F6';
-const AMBER = '#F59E0B';
+const PURPLE = COLORS.primary;
+const LIGHT_PURPLE = COLORS.mood;
+const DARK_BG = COLORS.bg;
+const CARD_BG = COLORS.surfaceCard;
+const GLASS_BORDER = COLORS.surfaceBorder;
+const GREEN = COLORS.health;
+const BLUE = COLORS.sleep;
+const AMBER = COLORS.food;
 const RED = '#EF4444';
 
 // ── Time-Based Greeting ─────────────────────────────────────────────────────
@@ -1684,33 +1686,28 @@ export default function HomeScreen() {
 const s = StyleSheet.create({
   container: { flex: 1, backgroundColor: DARK_BG },
 
-  glowCircle1: { position: 'absolute', top: 40, left: -100, width: 360, height: 360, borderRadius: 180, backgroundColor: 'rgba(143, 102, 255, 0.10)' },
-  glowCircle2: { position: 'absolute', bottom: 100, right: -120, width: 380, height: 380, borderRadius: 190, backgroundColor: 'rgba(59, 130, 246, 0.08)' },
-  glowCircle3: { position: 'absolute', top: '40%', right: -80, width: 300, height: 300, borderRadius: 150, backgroundColor: 'rgba(6, 182, 212, 0.07)' },
+  glowCircle1: { position: 'absolute', top: 40, left: -100, width: 360, height: 360, borderRadius: 180, backgroundColor: 'rgba(143, 102, 255, 0.04)' },
+  glowCircle2: { position: 'absolute', bottom: 100, right: -120, width: 380, height: 380, borderRadius: 190, backgroundColor: 'rgba(59, 130, 246, 0.03)' },
+  glowCircle3: { position: 'absolute', top: '40%', right: -80, width: 300, height: 300, borderRadius: 150, backgroundColor: 'rgba(6, 182, 212, 0.02)' },
 
-  scrollContent: { paddingHorizontal: 20, paddingBottom: 130, gap: 20 },
+  scrollContent: { paddingHorizontal: SPACING.xl, paddingBottom: 130, gap: SPACING.lg },
 
   // Greeting
-  greetingSection: { marginBottom: 4 },
+  greetingSection: { marginBottom: SPACING.xs },
   greetingTopRow: { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between' },
-  greetingText: { color: '#fff', fontSize: 24, fontWeight: '800', letterSpacing: -0.3, lineHeight: 32, paddingTop: 4 },
-  dateLabel: { color: '#D2D2E6', fontSize: 14, fontWeight: '600' },
-  weatherLabel: { color: LIGHT_PURPLE, fontSize: 14, fontWeight: '600' },
-  notifBadge: { width: 42, height: 42, borderRadius: 21, backgroundColor: 'rgba(143, 102, 255, 0.12)', justifyContent: 'center', alignItems: 'center', marginTop: 2 },
+  greetingText: { color: '#fff', fontSize: 20, fontWeight: '700', letterSpacing: -0.2, lineHeight: 26, paddingTop: 4 },
+  dateLabel: { color: COLORS.textMuted, fontSize: 13, fontWeight: '600' },
+  weatherLabel: { color: COLORS.primary, fontSize: 13, fontWeight: '600' },
+  notifBadge: { width: 38, height: 38, borderRadius: 19, backgroundColor: 'rgba(255, 255, 255, 0.03)', borderWidth: 1, borderColor: GLASS_BORDER, justifyContent: 'center', alignItems: 'center', marginTop: 2 },
 
   // AI Suggestion Card
   suggestionCard: {
-    borderRadius: 24,
-    padding: 20,
+    borderRadius: 16,
+    padding: SPACING.lg,
     backgroundColor: CARD_BG,
     borderWidth: 1,
     borderColor: GLASS_BORDER,
     overflow: 'hidden',
-    shadowColor: '#8F66FF',
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.06,
-    shadowRadius: 16,
-    elevation: 3,
     ...Platform.select({
       web: {
         backdropFilter: 'blur(20px)',
@@ -1720,43 +1717,38 @@ const s = StyleSheet.create({
       default: {},
     }),
   },
-  suggestionHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 },
-  suggestionHeaderText: { color: '#fff', fontSize: 16, fontWeight: '800' },
-  bestForYouBadge: { backgroundColor: 'rgba(143, 102, 255, 0.15)', paddingHorizontal: 10, paddingVertical: 4, borderRadius: 8 },
-  bestForYouText: { color: PURPLE, fontSize: 10, fontWeight: '900', letterSpacing: 0.5 },
-  suggestionBody: { flexDirection: 'row', gap: 14, marginBottom: 16 },
-  suggestionIconCircle: { width: 52, height: 52, borderRadius: 16, justifyContent: 'center', alignItems: 'center' },
+  suggestionHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: SPACING.md },
+  suggestionHeaderText: { color: '#fff', fontSize: 15, fontWeight: '700' },
+  bestForYouBadge: { backgroundColor: 'rgba(143, 102, 255, 0.08)', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 6 },
+  bestForYouText: { color: PURPLE, fontSize: 9, fontWeight: '800', letterSpacing: 0.5 },
+  suggestionBody: { flexDirection: 'row', gap: SPACING.md, marginBottom: SPACING.md },
+  suggestionIconCircle: { width: 44, height: 44, borderRadius: 12, justifyContent: 'center', alignItems: 'center' },
   suggestionText: { color: '#fff', fontSize: 14, fontWeight: '700', lineHeight: 20, marginBottom: 4 },
-  suggestionEvidence: { color: '#D2D2E6', fontSize: 12, fontWeight: '600', lineHeight: 17, marginBottom: 8 },
+  suggestionEvidence: { color: COLORS.textMuted, fontSize: 12, fontWeight: '500', lineHeight: 17, marginBottom: 8 },
   suggestionMetaRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
-  confidencePill: { backgroundColor: 'rgba(129, 199, 132, 0.15)', paddingHorizontal: 8, paddingVertical: 3, borderRadius: 6 },
-  confidencePillText: { color: GREEN, fontSize: 10, fontWeight: '800' },
-  evidenceText: { color: '#D2D2E6', fontSize: 11, fontWeight: '700' },
-  suggestionActions: { flexDirection: 'row', gap: 12 },
-  suggestionPrimaryBtn: { flex: 1, height: 42, borderRadius: 12, backgroundColor: PURPLE, justifyContent: 'center', alignItems: 'center' },
-  suggestionPrimaryBtnText: { color: '#fff', fontSize: 14, fontWeight: '800' },
-  suggestionSecondaryBtn: { flex: 1, height: 42, borderRadius: 12, borderWidth: 1.5, borderColor: PURPLE, justifyContent: 'center', alignItems: 'center' },
-  suggestionSecondaryBtnText: { color: PURPLE, fontSize: 14, fontWeight: '800' },
+  confidencePill: { backgroundColor: 'rgba(52, 211, 153, 0.08)', paddingHorizontal: 8, paddingVertical: 3, borderRadius: 6 },
+  confidencePillText: { color: GREEN, fontSize: 10, fontWeight: '700' },
+  evidenceText: { color: COLORS.textMuted, fontSize: 11, fontWeight: '600' },
+  suggestionActions: { flexDirection: 'row', gap: SPACING.md },
+  suggestionPrimaryBtn: { flex: 1, height: 38, borderRadius: 10, backgroundColor: PURPLE, justifyContent: 'center', alignItems: 'center' },
+  suggestionPrimaryBtnText: { color: '#fff', fontSize: 13, fontWeight: '700' },
+  suggestionSecondaryBtn: { flex: 1, height: 38, borderRadius: 10, borderWidth: 1, borderColor: PURPLE, justifyContent: 'center', alignItems: 'center' },
+  suggestionSecondaryBtnText: { color: PURPLE, fontSize: 13, fontWeight: '700' },
   emptySuggestion: { alignItems: 'center', paddingVertical: 20, gap: 10 },
-  emptySuggestionText: { color: '#D2D2E6', fontSize: 13, fontWeight: '600', textAlign: 'center' },
+  emptySuggestionText: { color: COLORS.textMuted, fontSize: 13, fontWeight: '500', textAlign: 'center' },
 
   // Section Headers
-  sectionHeaderRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 },
-  sectionTitle: { color: '#fff', fontSize: 18, fontWeight: '800' },
-  sectionLink: { color: PURPLE, fontSize: 13, fontWeight: '700' },
+  sectionHeaderRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: SPACING.sm },
+  sectionTitle: { color: '#fff', fontSize: 15, fontWeight: '700' },
+  sectionLink: { color: PURPLE, fontSize: 13, fontWeight: '600' },
 
   // Schedule Card
   scheduleCard: {
-    borderRadius: 20,
+    borderRadius: 16,
     backgroundColor: CARD_BG,
     borderWidth: 1,
     borderColor: GLASS_BORDER,
     overflow: 'hidden',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.04,
-    shadowRadius: 12,
-    elevation: 2,
     ...Platform.select({
       web: {
         backdropFilter: 'blur(20px)',
@@ -1766,35 +1758,30 @@ const s = StyleSheet.create({
       default: {},
     }),
   },
-  scheduleRow: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 14, gap: 14 },
-  scheduleRowBorder: { borderBottomWidth: 1, borderBottomColor: 'rgba(255, 255, 255, 0.06)' },
-  scheduleTime: { color: LIGHT_PURPLE, fontSize: 13, fontWeight: '800', width: 78 },
-  scheduleTitle: { flex: 1, color: '#fff', fontSize: 14, fontWeight: '700' },
-  scheduleIconCircle: { width: 34, height: 34, borderRadius: 10, justifyContent: 'center', alignItems: 'center' },
-  emptySchedule: { alignItems: 'center', paddingVertical: 28, gap: 10 },
-  emptyScheduleText: { color: '#D2D2E6', fontSize: 13, fontWeight: '600' },
+  scheduleRow: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: SPACING.lg, paddingVertical: SPACING.md, gap: SPACING.md },
+  scheduleRowBorder: { borderBottomWidth: 1, borderBottomColor: 'rgba(255, 255, 255, 0.04)' },
+  scheduleTime: { color: COLORS.primary, fontSize: 13, fontWeight: '700', width: 78 },
+  scheduleTitle: { flex: 1, color: '#fff', fontSize: 13.5, fontWeight: '600' },
+  scheduleIconCircle: { width: 30, height: 30, borderRadius: 8, justifyContent: 'center', alignItems: 'center' },
+  emptySchedule: { alignItems: 'center', paddingVertical: 24, gap: 10 },
+  emptyScheduleText: { color: COLORS.textMuted, fontSize: 13, fontWeight: '500' },
 
   // Connect Google
-  connectGoogleBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', marginTop: 10, height: 44, borderRadius: 14, borderWidth: 1.5, borderColor: PURPLE, backgroundColor: 'rgba(143, 102, 255, 0.06)' },
-  connectGoogleText: { color: PURPLE, fontSize: 14, fontWeight: '700' },
+  connectGoogleBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', marginTop: 10, height: 40, borderRadius: 10, borderWidth: 1, borderColor: PURPLE, backgroundColor: 'rgba(143, 102, 255, 0.04)' },
+  connectGoogleText: { color: PURPLE, fontSize: 13, fontWeight: '700' },
 
   // Daily Summary
-  summaryStrip: { flexDirection: 'row', gap: 10 },
+  summaryStrip: { flexDirection: 'row', gap: SPACING.sm },
   summaryCard: {
     flex: 1,
-    paddingVertical: 16,
-    paddingHorizontal: 8,
-    borderRadius: 18,
+    paddingVertical: SPACING.md,
+    paddingHorizontal: SPACING.sm,
+    borderRadius: 14,
     alignItems: 'center',
     gap: 6,
     backgroundColor: CARD_BG,
     borderWidth: 1,
     borderColor: GLASS_BORDER,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.03,
-    shadowRadius: 8,
-    elevation: 1,
     ...Platform.select({
       web: {
         backdropFilter: 'blur(15px)',
@@ -1804,18 +1791,18 @@ const s = StyleSheet.create({
       default: {},
     }),
   },
-  summaryValue: { fontSize: 14, fontWeight: '900' },
-  summaryLabel: { fontSize: 11, fontWeight: '800', color: LIGHT_PURPLE },
+  summaryValue: { fontSize: 13.5, fontWeight: '800' },
+  summaryLabel: { fontSize: 10.5, fontWeight: '600', color: COLORS.textMuted },
 
   // Quick Add
   quickAddStrip: { flexDirection: 'row', justifyContent: 'space-between' },
   quickAddBtn: { alignItems: 'center', gap: 6, width: (SCREEN_WIDTH - 40) / 5 },
-  quickAddCircle: { width: 52, height: 52, borderRadius: 26, justifyContent: 'center', alignItems: 'center' },
-  quickAddLabel: { color: '#D2D2E6', fontSize: 12, fontWeight: '700' },
+  quickAddCircle: { width: 44, height: 44, borderRadius: 22, justifyContent: 'center', alignItems: 'center' },
+  quickAddLabel: { color: '#fff', fontSize: 11, fontWeight: '600', marginTop: 2 },
 
   // Footer
   footer: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', marginTop: 10, paddingVertical: 8 },
-  footerText: { fontSize: 12, color: '#C4A8FF', fontWeight: '700', opacity: 0.8 },
+  footerText: { fontSize: 11.5, color: COLORS.text, fontWeight: '600', opacity: 0.35 },
 
   // ── Quick Event Modal & Toast Styles ───────────────────────────────────────
   modalOverlay: {
@@ -2120,18 +2107,13 @@ const s = StyleSheet.create({
   },
   // Location Intelligence Suggestion styles
   locSuggestionCard: {
-    borderRadius: 24,
-    padding: 20,
-    backgroundColor: '#1E2142',
-    borderWidth: 1.5,
-    borderColor: 'rgba(143, 102, 255, 0.25)',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.4,
-    shadowRadius: 16,
-    elevation: 8,
-    gap: 12,
-    marginBottom: 8,
+    borderRadius: 16,
+    padding: SPACING.lg,
+    backgroundColor: CARD_BG,
+    borderWidth: 1,
+    borderColor: GLASS_BORDER,
+    gap: SPACING.md,
+    marginBottom: SPACING.md,
   },
   locNotifHeader: {
     flexDirection: 'row',

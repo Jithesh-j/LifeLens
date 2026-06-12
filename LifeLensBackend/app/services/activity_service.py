@@ -12,7 +12,7 @@ from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.activity import Activity
-from app.schemas.activity import ActivityCreate, ActivityListResponse, ActivityResponse
+from app.schemas.activity import ActivityCreate, ActivityListResponse, ActivityResponse, ActivityUpdate
 from app.services.ai_service import categorize_activity
 from app.services.embedding_service import generate_embedding, search_similar_activities
 
@@ -143,3 +143,51 @@ async def search_activities(
     """Semantic search across user's activities using pgvector."""
     activities = await search_similar_activities(db, user_id, query, limit)
     return [ActivityResponse.model_validate(a) for a in activities]
+
+
+async def update_activity(
+    db: AsyncSession,
+    user_id: UUID,
+    activity_id: UUID,
+    payload: ActivityUpdate,
+) -> ActivityResponse | None:
+    """
+    Update an existing activity log entry.
+    If content is updated, regenerates embedding for semantic search.
+    """
+    result = await db.execute(
+        select(Activity).where(
+            Activity.id == activity_id,
+            Activity.user_id == user_id,
+            Activity.is_deleted == False,  # noqa: E712
+        )
+    )
+    activity = result.scalar_one_or_none()
+    if activity is None:
+        return None
+
+    if payload.content is not None:
+        activity.content = payload.content
+        activity.embedding = await generate_embedding(payload.content)
+        
+        # If user did not manually override metadata, run AI categorization
+        if payload.category is None and payload.mood is None and payload.tags is None:
+            analysis = await categorize_activity(payload.content)
+            activity.category = analysis.category
+            activity.mood = analysis.mood
+            activity.tags = ",".join(analysis.tags) if analysis.tags else None
+    
+    if payload.category is not None:
+        activity.category = payload.category
+    
+    if payload.mood is not None:
+        activity.mood = payload.mood
+        
+    if payload.tags is not None:
+        activity.tags = payload.tags
+        
+    if payload.logged_at is not None:
+        activity.logged_at = payload.logged_at
+
+    await db.flush()
+    return ActivityResponse.model_validate(activity)
