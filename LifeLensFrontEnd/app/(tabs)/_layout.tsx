@@ -5,16 +5,20 @@ import { View, Platform } from 'react-native';
 import { HapticTab } from '@/components/haptic-tab';
 import { IconSymbol } from '@/components/ui/icon-symbol';
 import { useCalendarUI } from '@/context/calendar-ui';
+import { useThemeColors } from '@/constants/design-system';
+import { useColorScheme } from '@/hooks/use-color-scheme';
 
 export default function TabLayout() {
   const router = useRouter();
   const { calendarExpanded, setCalendarExpanded, selectedDate } = useCalendarUI();
+  const COLORS = useThemeColors();
+  const colorScheme = useColorScheme();
 
   return (
     <Tabs
       screenOptions={{
-        tabBarActiveTintColor: '#8F66FF',
-        tabBarInactiveTintColor: 'rgba(255, 255, 255, 0.45)',
+        tabBarActiveTintColor: COLORS.primary,
+        tabBarInactiveTintColor: COLORS.textMuted,
         headerShown: false,
         tabBarButton: HapticTab,
         tabBarLabelStyle: {
@@ -24,8 +28,8 @@ export default function TabLayout() {
           marginTop: 2,
         },
         tabBarStyle: {
-          backgroundColor: 'rgba(10, 12, 27, 0.8)',
-          borderTopColor: 'rgba(255, 255, 255, 0.09)',
+          backgroundColor: colorScheme === 'dark' ? 'rgba(8, 10, 15, 0.85)' : 'rgba(248, 250, 252, 0.85)',
+          borderTopColor: COLORS.surfaceBorder,
           borderTopWidth: 1.2,
           height: 82,
           paddingBottom: 24,
@@ -73,17 +77,17 @@ export default function TabLayout() {
               width: 56,
               height: 56,
               borderRadius: 28,
-              backgroundColor: '#8F66FF',
+              backgroundColor: COLORS.primary,
               justifyContent: 'center',
               alignItems: 'center',
               top: -12, // floating elevated action button, perfectly centered vertically
-              shadowColor: '#8F66FF',
+              shadowColor: COLORS.primary,
               shadowOffset: { width: 0, height: 6 },
               shadowOpacity: 0.4,
               shadowRadius: 10,
               elevation: 8,
               borderWidth: 3.5,
-              borderColor: '#080916', // cleanly masks with background
+              borderColor: COLORS.bg, // cleanly masks with background
             }}>
               <IconSymbol 
                 size={30} 

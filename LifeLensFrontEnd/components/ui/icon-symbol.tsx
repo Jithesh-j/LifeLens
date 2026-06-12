@@ -90,6 +90,8 @@ const MAPPING = {
   'book': 'book',
   'cup.and.saucer.fill': 'local-cafe',
   'cup.and.saucer': 'local-cafe',
+  'paintpalette.fill': 'palette',
+  'paintpalette': 'palette',
 } as const;
 
 /**

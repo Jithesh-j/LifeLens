@@ -308,7 +308,7 @@ export async function startBackgroundLocation(userId: string) {
       foregroundService: {
         notificationTitle: 'AuraJournal Location Intelligence',
         notificationBody: 'Intelligent stay detection is running in the background.',
-        notificationColor: '#8F66FF',
+        notificationColor: '#0D9488',
       },
       pausesUpdatesAutomatically: true,
     });

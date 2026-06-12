@@ -20,7 +20,7 @@ const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
 
 // ── COLOR SYSTEM ─────────────────────────────────────────────────────────────
 const OBSIDIAN = '#03040B';
-const NEON_PURPLE = '#A855F7';
+const NEON_PURPLE = '#0D9488'; // Brand Teal
 const SKY_BLUE = '#0EA5E9';
 const SUNSET_ORANGE = '#F97316';
 const EMERALD_GREEN = '#10B981';
@@ -493,7 +493,7 @@ export default function ExploreScreen() {
       {/* ── Pitch-black cosmic container with ambient glow circles ── */}
       <View style={StyleSheet.absoluteFill}>
         {/* Soft background blooms */}
-        <View style={[s.glowCircle, { backgroundColor: 'rgba(143, 102, 255, 0.11)', width: 380, height: 380, borderRadius: 190, top: '25%', left: '10%' }]} />
+        <View style={[s.glowCircle, { backgroundColor: 'rgba(13, 148, 136, 0.08)', width: 380, height: 380, borderRadius: 190, top: '25%', left: '10%' }]} />
         <View style={[s.glowCircle, { backgroundColor: 'rgba(14, 165, 233, 0.08)', width: 300, height: 300, borderRadius: 150, top: '35%', right: '5%' }]} />
         <View style={[s.glowCircle, { backgroundColor: 'rgba(236, 72, 153, 0.06)', width: 260, height: 260, borderRadius: 130, top: '15%', left: '20%' }]} />
 
@@ -787,7 +787,7 @@ const s = StyleSheet.create({
     fontFamily: Fonts.mono,
     fontSize: 10,
     letterSpacing: 2.5,
-    color: 'rgba(143, 102, 255, 0.8)',
+    color: 'rgba(13, 148, 136, 0.8)',
     marginBottom: 4,
   },
   headerTitle: {
@@ -810,7 +810,7 @@ const s = StyleSheet.create({
     width: 140,
     height: 140,
     borderRadius: 70,
-    backgroundColor: 'rgba(143, 102, 255, 0.22)',
+    backgroundColor: 'rgba(13, 148, 136, 0.22)',
   },
   neonRingOuter: {
     position: 'absolute',

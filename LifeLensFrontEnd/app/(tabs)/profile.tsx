@@ -22,6 +22,8 @@ import { api } from '@/services/api';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { scheduleActivityNotification, registerForPushNotificationsAsync, appendNotificationToHistory } from '@/services/notifications';
 import { startBackgroundLocation, stopBackgroundLocation } from '@/services/background-location';
+import { useTheme } from '@/context/theme-context';
+import { useThemeColors } from '@/constants/design-system';
 
 const SCREEN_HEIGHT = Dimensions.get('window').height;
 
@@ -117,10 +119,25 @@ export default function ProfileScreen() {
   const { user, logout } = useAuth();
   const { addNoteAndExtract, scheduleItems } = useSchedule();
   const insets = useSafeAreaInsets();
+  
+  const { themePreference, setThemePreference } = useTheme();
+  const COLORS = useThemeColors();
+
+  const PURPLE = COLORS.primary;
+  const LIGHT_PURPLE = COLORS.mood;
+  const DARK_BG = COLORS.bg;
+  const CARD_BG = COLORS.surfaceCard;
+  const GLASS_BORDER = COLORS.surfaceBorder;
+  const GREEN = COLORS.health;
+  const BLUE = COLORS.sleep;
+  const AMBER = COLORS.food;
+  const RED = '#EF4444';
 
   const primaryColor = PURPLE;
   const errorColor = RED;
   const cardBg = CARD_BG;
+
+  const styles = React.useMemo(() => getStyles(COLORS), [COLORS]);
 
   // Settings States (stored in SecureStore)
   const [locationEnabled, setLocationEnabled] = useState(false);
@@ -915,7 +932,7 @@ export default function ProfileScreen() {
           <TouchableOpacity style={styles.settingsRow} onPress={() => setActiveModal('account')}>
             <IconSymbol size={22} name="person.crop.circle.fill" color={primaryColor} />
             <ThemedText style={styles.settingsLabel}>Account</ThemedText>
-            <IconSymbol size={16} name="chevron.right" color="#FFF" style={{ opacity: 0.3 }} />
+            <IconSymbol size={16} name="chevron.right" color={COLORS.text} style={{ opacity: 0.3 }} />
           </TouchableOpacity>
           <View style={styles.divider} />
 
@@ -923,7 +940,7 @@ export default function ProfileScreen() {
           <TouchableOpacity style={styles.settingsRow} onPress={() => setActiveModal('notifications')}>
             <IconSymbol size={22} name="bell.fill" color={primaryColor} />
             <ThemedText style={styles.settingsLabel}>Notifications</ThemedText>
-            <IconSymbol size={16} name="chevron.right" color="#FFF" style={{ opacity: 0.3 }} />
+            <IconSymbol size={16} name="chevron.right" color={COLORS.text} style={{ opacity: 0.3 }} />
           </TouchableOpacity>
           <View style={styles.divider} />
 
@@ -942,7 +959,7 @@ export default function ProfileScreen() {
                   : '🔴 Disabled (Off-grid suggestions)'}
               </ThemedText>
             </View>
-            <IconSymbol size={16} name="chevron.right" color="#FFF" style={{ opacity: 0.3 }} />
+            <IconSymbol size={16} name="chevron.right" color={COLORS.text} style={{ opacity: 0.3 }} />
           </TouchableOpacity>
           <View style={styles.divider} />
 
@@ -950,7 +967,24 @@ export default function ProfileScreen() {
           <TouchableOpacity style={styles.settingsRow} onPress={() => setActiveModal('privacy')}>
             <IconSymbol size={22} name="shield.fill" color={primaryColor} />
             <ThemedText style={styles.settingsLabel}>Data & Privacy</ThemedText>
-            <IconSymbol size={16} name="chevron.right" color="#FFF" style={{ opacity: 0.3 }} />
+            <IconSymbol size={16} name="chevron.right" color={COLORS.text} style={{ opacity: 0.3 }} />
+          </TouchableOpacity>
+          <View style={styles.divider} />
+
+          {/* Theme/Appearance settings */}
+          <TouchableOpacity style={styles.settingsRow} onPress={() => setActiveModal('theme')}>
+            <IconSymbol size={22} name="paintpalette.fill" color={primaryColor} />
+            <View style={{ flex: 1 }}>
+              <ThemedText style={styles.settingsLabel}>Appearance</ThemedText>
+              <ThemedText style={styles.settingsSubtitle}>
+                {themePreference === 'system' 
+                  ? 'System Default' 
+                  : themePreference === 'light' 
+                    ? '☀️ Light Mode' 
+                    : '🌙 Dark Mode'}
+              </ThemedText>
+            </View>
+            <IconSymbol size={16} name="chevron.right" color={COLORS.text} style={{ opacity: 0.3 }} />
           </TouchableOpacity>
         </View>
 
@@ -970,7 +1004,7 @@ export default function ProfileScreen() {
             <View style={styles.modalHeader}>
               <ThemedText style={styles.modalTitle}>Account Settings</ThemedText>
               <TouchableOpacity onPress={() => setActiveModal(null)}>
-                <IconSymbol size={24} name="xmark" color="#FFF" />
+                <IconSymbol size={24} name="xmark" color={COLORS.text} />
               </TouchableOpacity>
             </View>
             <View style={styles.modalBody}>
@@ -1010,7 +1044,7 @@ export default function ProfileScreen() {
                 <ThemedText style={styles.modalTitle}>Notification Settings</ThemedText>
               </View>
               <TouchableOpacity onPress={() => setActiveModal(null)}>
-                <IconSymbol size={24} name="xmark" color="#FFF" />
+                <IconSymbol size={24} name="xmark" color={COLORS.text} />
               </TouchableOpacity>
             </View>
 
@@ -1122,7 +1156,7 @@ export default function ProfileScreen() {
             <View style={styles.modalHeader}>
               <ThemedText style={styles.modalTitle}>Data & Privacy Policy</ThemedText>
               <TouchableOpacity onPress={() => setActiveModal(null)}>
-                <IconSymbol size={24} name="xmark" color="#FFF" />
+                <IconSymbol size={24} name="xmark" color={COLORS.text} />
               </TouchableOpacity>
             </View>
             <ScrollView style={{ maxHeight: 400 }} contentContainerStyle={{ gap: 16, paddingBottom: 24 }}>
@@ -1161,7 +1195,7 @@ export default function ProfileScreen() {
                 <ThemedText style={styles.modalTitle}>Location Intelligence</ThemedText>
               </View>
               <TouchableOpacity onPress={() => setActiveModal(null)}>
-                <IconSymbol size={24} name="xmark" color="#FFF" />
+                <IconSymbol size={24} name="xmark" color={COLORS.text} />
               </TouchableOpacity>
             </View>
           </View>
@@ -1409,7 +1443,7 @@ export default function ProfileScreen() {
                     <IconSymbol size={18} name="location.fill" color={PURPLE} />
                     <ThemedText style={styles.mockNotifTitle}>📍 {activeSimulation.title || 'Activity Detected'}</ThemedText>
                     <TouchableOpacity onPress={clearSimulatedSuggestion} style={styles.mockNotifClose}>
-                      <IconSymbol size={16} name="xmark" color="#FFF" style={{ opacity: 0.5 }} />
+                      <IconSymbol size={16} name="xmark" color={COLORS.text} style={{ opacity: 0.5 }} />
                     </TouchableOpacity>
                   </View>
 
@@ -1458,6 +1492,49 @@ export default function ProfileScreen() {
         </View>
       )}
 
+      {/* 5.5 Appearance Settings Overlay */}
+      {activeModal === 'theme' && (
+        <View style={styles.absoluteOverlay}>
+          <View style={styles.modalContent}>
+            <View style={styles.modalHeader}>
+              <ThemedText style={styles.modalTitle}>Appearance</ThemedText>
+              <TouchableOpacity onPress={() => setActiveModal(null)}>
+                <IconSymbol size={24} name="xmark" color={COLORS.text} />
+              </TouchableOpacity>
+            </View>
+            <View style={styles.modalBody}>
+              <ThemedText style={styles.detailLabel}>Choose how AuraJournal appears on your device.</ThemedText>
+              
+              <View style={{ gap: 12, marginTop: 16, paddingBottom: 16 }}>
+                {(['system', 'light', 'dark'] as const).map((pref) => {
+                  const isSelected = themePreference === pref;
+                  return (
+                    <TouchableOpacity 
+                      key={pref} 
+                      onPress={async () => {
+                        await setThemePreference(pref);
+                      }}
+                      style={[
+                        styles.themeOptionRow,
+                        isSelected && styles.themeOptionRowSelected
+                      ]}
+                    >
+                      <ThemedText style={[
+                        styles.themeOptionLabel,
+                        isSelected && styles.themeOptionLabelSelected
+                      ]}>
+                        {pref === 'system' ? '💻 System Default' : pref === 'light' ? '☀️ Light Mode' : '🌙 Dark Mode'}
+                      </ThemedText>
+                      {isSelected && <IconSymbol size={18} name="checkmark" color={primaryColor} />}
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
+            </View>
+          </View>
+        </View>
+      )}
+
       {/* 6. Permission Prompt Simulation Dialog */}
       {showPermissionPrompt && (
         <View style={styles.promptBg}>
@@ -1498,7 +1575,7 @@ export default function ProfileScreen() {
             <View style={styles.editHeader}>
               <ThemedText style={styles.editTitle}>Edit Location Activity</ThemedText>
               <TouchableOpacity onPress={() => setShowEditSheet(false)}>
-                <IconSymbol size={24} name="xmark" color="#FFF" />
+                <IconSymbol size={24} name="xmark" color={COLORS.text} />
               </TouchableOpacity>
             </View>
 
@@ -1549,7 +1626,7 @@ export default function ProfileScreen() {
                 <ThemedText style={styles.editTitle}>Quick Add Event</ThemedText>
               </View>
               <TouchableOpacity onPress={() => setShowQuickAddSheet(false)}>
-                <IconSymbol size={24} name="xmark" color="#FFF" />
+                <IconSymbol size={24} name="xmark" color={COLORS.text} />
               </TouchableOpacity>
             </View>
 
@@ -1606,15 +1683,15 @@ export default function ProfileScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const getStyles = (COLORS: any) => StyleSheet.create({
   outerContainer: {
     flex: 1,
-    backgroundColor: DARK_BG,
+    backgroundColor: COLORS.bg,
   },
 
-  glowCircle1: { position: 'absolute', top: 40, left: -100, width: 360, height: 360, borderRadius: 180, backgroundColor: 'rgba(143, 102, 255, 0.04)', zIndex: 0 },
+  glowCircle1: { position: 'absolute', top: 40, left: -100, width: 360, height: 360, borderRadius: 180, backgroundColor: 'rgba(13, 148, 136, 0.03)', zIndex: 0 },
   glowCircle2: { position: 'absolute', bottom: 100, right: -120, width: 380, height: 380, borderRadius: 190, backgroundColor: 'rgba(59, 130, 246, 0.03)', zIndex: 0 },
-  glowCircle3: { position: 'absolute', top: '40%', right: -80, width: 300, height: 300, borderRadius: 150, backgroundColor: 'rgba(6, 182, 212, 0.02)', zIndex: 0 },
+  glowCircle3: { position: 'absolute', top: '40%', right: -80, width: 300, height: 300, borderRadius: 150, backgroundColor: 'rgba(20, 184, 166, 0.02)', zIndex: 0 },
 
   container: {
     flex: 1,
@@ -1631,7 +1708,7 @@ const styles = StyleSheet.create({
   },
   headerTitle: {
     ...TYPOGRAPHY.title,
-    color: '#FFF',
+    color: COLORS.text,
     paddingTop: 6,
   },
   profileCard: {
@@ -1639,9 +1716,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     padding: SPACING.lg,
     borderRadius: 16,
-    backgroundColor: CARD_BG,
+    backgroundColor: COLORS.surfaceCard,
     borderWidth: 1,
-    borderColor: GLASS_BORDER,
+    borderColor: COLORS.surfaceBorder,
     gap: 16,
     ...Platform.select({
       web: {
@@ -1656,14 +1733,14 @@ const styles = StyleSheet.create({
     width: 56,
     height: 56,
     borderRadius: 28,
-    backgroundColor: 'rgba(255, 255, 255, 0.03)',
+    backgroundColor: COLORS.surface,
     borderWidth: 1,
-    borderColor: GLASS_BORDER,
+    borderColor: COLORS.surfaceBorder,
     justifyContent: 'center',
     alignItems: 'center',
   },
   avatarText: {
-    color: PURPLE,
+    color: COLORS.primary,
     fontSize: 20,
     fontWeight: '700',
   },
@@ -1674,7 +1751,7 @@ const styles = StyleSheet.create({
   username: {
     fontSize: 18,
     fontWeight: '700',
-    color: '#FFF',
+    color: COLORS.text,
   },
   email: {
     fontSize: 13,
@@ -1700,9 +1777,9 @@ const styles = StyleSheet.create({
     flex: 1,
     padding: SPACING.md,
     borderRadius: 14,
-    backgroundColor: CARD_BG,
+    backgroundColor: COLORS.surfaceCard,
     borderWidth: 1,
-    borderColor: GLASS_BORDER,
+    borderColor: COLORS.surfaceBorder,
     alignItems: 'center',
     gap: SPACING.xs,
     ...Platform.select({
@@ -1717,7 +1794,7 @@ const styles = StyleSheet.create({
   statVal: {
     fontSize: 16,
     fontWeight: '700',
-    color: '#FFF',
+    color: COLORS.text,
   },
   statLabel: {
     fontSize: 11,
@@ -1726,9 +1803,9 @@ const styles = StyleSheet.create({
   },
   settingsList: {
     borderRadius: 14,
-    backgroundColor: CARD_BG,
+    backgroundColor: COLORS.surfaceCard,
     borderWidth: 1,
-    borderColor: GLASS_BORDER,
+    borderColor: COLORS.surfaceBorder,
     paddingHorizontal: SPACING.lg,
     ...Platform.select({
       web: {
@@ -1748,7 +1825,7 @@ const styles = StyleSheet.create({
   settingsLabel: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#FFF',
+    color: COLORS.text,
     flex: 1,
   },
   settingsSubtitle: {
@@ -1758,13 +1835,13 @@ const styles = StyleSheet.create({
   },
   divider: {
     height: 1,
-    backgroundColor: 'rgba(255, 255, 255, 0.04)',
+    backgroundColor: COLORS.surfaceBorder,
   },
   logoutBtn: {
     flexDirection: 'row',
     height: 44,
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.1)',
+    borderColor: COLORS.surfaceBorder,
     borderRadius: 10,
     justifyContent: 'center',
     alignItems: 'center',
@@ -1777,7 +1854,7 @@ const styles = StyleSheet.create({
   logoutBtnText: {
     fontSize: 14,
     fontWeight: '700',
-    color: '#fff',
+    color: '#EF4444',
   },
 
   // Absolute Position Overlay Styles (Replacing Modals)
@@ -1787,8 +1864,9 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     bottom: 0,
-    backgroundColor: 'rgba(8, 9, 22, 0.98)', // Premium solid dark background preventing background text bleed-through
+    backgroundColor: COLORS.bg, // Premium solid background matching theme
     justifyContent: 'flex-end',
+    paddingBottom: 96, // Pushes modalContent above the 82px tab bar cleanly
     zIndex: 9999,
   },
   absoluteOverlayLarge: {
@@ -1797,15 +1875,15 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     bottom: 0,
-    backgroundColor: DARK_BG,
+    backgroundColor: COLORS.bg,
     zIndex: 10000,
   },
   locationHeaderCard: {
     paddingHorizontal: 24,
     paddingBottom: 16,
     borderBottomWidth: 1,
-    borderBottomColor: GLASS_BORDER,
-    backgroundColor: DARK_BG,
+    borderBottomColor: COLORS.surfaceBorder,
+    backgroundColor: COLORS.bg,
   },
   promptBg: {
     position: 'absolute',
@@ -1832,11 +1910,11 @@ const styles = StyleSheet.create({
   },
 
   modalContent: {
-    backgroundColor: CARD_BG,
+    backgroundColor: COLORS.surfaceCard,
     borderTopLeftRadius: 24,
     borderTopRightRadius: 24,
     borderWidth: 1,
-    borderColor: GLASS_BORDER,
+    borderColor: COLORS.surfaceBorder,
     padding: 24,
     gap: 20,
   },
@@ -1849,7 +1927,7 @@ const styles = StyleSheet.create({
   modalTitle: {
     fontSize: 20,
     fontWeight: '800',
-    color: '#FFF',
+    color: COLORS.text,
   },
   modalBody: {
     gap: 14,
@@ -1862,17 +1940,16 @@ const styles = StyleSheet.create({
   },
   detailLabel: {
     fontSize: 15,
-    opacity: 0.6,
-    color: '#FFF',
+    color: COLORS.textMuted,
   },
   detailValue: {
     fontSize: 15,
     fontWeight: '600',
-    color: '#FFF',
+    color: COLORS.text,
   },
   innerDivider: {
     height: 1,
-    backgroundColor: 'rgba(255, 255, 255, 0.06)',
+    backgroundColor: COLORS.surfaceBorder,
   },
   switchRow: {
     flexDirection: 'row',
@@ -1883,39 +1960,36 @@ const styles = StyleSheet.create({
   switchLabel: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#FFF',
+    color: COLORS.text,
   },
   switchDesc: {
     fontSize: 12,
-    opacity: 0.5,
-    color: '#FFF',
+    color: COLORS.textMuted,
     marginTop: 2,
   },
   infoText: {
     fontSize: 14,
-    opacity: 0.6,
-    color: '#FFF',
+    color: COLORS.textMuted,
     lineHeight: 20,
     marginTop: 4,
   },
   privacyCard: {
     padding: 16,
     borderRadius: 16,
-    backgroundColor: 'rgba(255,255,255,0.03)',
+    backgroundColor: COLORS.surface,
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.06)',
+    borderColor: COLORS.surfaceBorder,
     gap: 8,
   },
   privacyCardTitle: {
     fontSize: 16,
     fontWeight: '700',
-    color: '#FFF',
+    color: COLORS.text,
     marginTop: 4,
   },
   privacyCardText: {
     fontSize: 13,
-    opacity: 0.6,
-    color: '#FFF',
+    color: COLORS.textMuted,
     lineHeight: 18,
   },
 
@@ -1932,13 +2006,13 @@ const styles = StyleSheet.create({
   descCard: {
     padding: 16,
     borderRadius: 16,
-    backgroundColor: 'rgba(143, 102, 255, 0.05)',
+    backgroundColor: COLORS.primaryBg,
     borderWidth: 1,
-    borderColor: 'rgba(143, 102, 255, 0.12)',
+    borderColor: 'rgba(13, 148, 136, 0.12)',
   },
   descText: {
     fontSize: 14,
-    color: LIGHT_PURPLE,
+    color: COLORS.mood,
     lineHeight: 20,
   },
   switchRowCard: {
@@ -1946,34 +2020,33 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     padding: 18,
     borderRadius: 18,
-    backgroundColor: 'rgba(255,255,255,0.03)',
+    backgroundColor: COLORS.surface,
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.07)',
+    borderColor: COLORS.surfaceBorder,
   },
   switchRowLabel: {
     fontSize: 16,
     fontWeight: '700',
-    color: '#FFF',
+    color: COLORS.text,
   },
   switchRowDesc: {
     fontSize: 12,
-    opacity: 0.5,
-    color: '#FFF',
+    color: COLORS.textMuted,
     lineHeight: 16,
     paddingRight: 10,
   },
   inferenceBox: {
     padding: 18,
     borderRadius: 18,
-    backgroundColor: 'rgba(255,255,255,0.02)',
+    backgroundColor: COLORS.surface,
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.05)',
+    borderColor: COLORS.surfaceBorder,
     gap: 12,
   },
   inferenceTitle: {
     fontSize: 14,
     fontWeight: '800',
-    color: PURPLE,
+    color: COLORS.primary,
     letterSpacing: 0.5,
     marginBottom: 4,
   },
@@ -1988,33 +2061,32 @@ const styles = StyleSheet.create({
   inferenceLabel: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#FFF',
+    color: COLORS.text,
   },
   inferenceResult: {
     fontSize: 12,
-    opacity: 0.5,
-    color: '#FFF',
+    color: COLORS.textMuted,
   },
   inferenceDivider: {
     height: 1,
-    backgroundColor: 'rgba(255,255,255,0.04)',
+    backgroundColor: COLORS.surfaceBorder,
   },
   frequencyCard: {
     padding: 18,
     borderRadius: 18,
-    backgroundColor: 'rgba(255,255,255,0.03)',
+    backgroundColor: COLORS.surface,
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.07)',
+    borderColor: COLORS.surfaceBorder,
     gap: 12,
   },
   frequencyTitle: {
     fontSize: 15,
     fontWeight: '700',
-    color: '#FFF',
+    color: COLORS.text,
   },
   pillRow: {
     flexDirection: 'row',
-    backgroundColor: 'rgba(255,255,255,0.05)',
+    backgroundColor: COLORS.surface,
     borderRadius: 12,
     padding: 4,
     gap: 4,
@@ -2027,30 +2099,29 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   freqPillSelected: {
-    backgroundColor: PURPLE,
+    backgroundColor: COLORS.primary,
   },
   freqPillText: {
     fontSize: 11,
     fontWeight: '700',
-    opacity: 0.5,
-    color: '#FFF',
+    color: COLORS.textMuted,
   },
   freqPillTextSelected: {
-    opacity: 1,
+    color: '#FFF',
   },
   privacyNoticeBox: {
     flexDirection: 'row',
     padding: 14,
-    backgroundColor: 'rgba(129, 199, 132, 0.05)',
+    backgroundColor: COLORS.bg === '#080A0F' ? 'rgba(16, 185, 129, 0.05)' : 'rgba(16, 185, 129, 0.08)',
     borderWidth: 1,
-    borderColor: 'rgba(129, 199, 132, 0.12)',
+    borderColor: 'rgba(16, 185, 129, 0.12)',
     borderRadius: 14,
     alignItems: 'center',
     gap: 10,
   },
   privacyNoticeText: {
     fontSize: 12,
-    color: GREEN,
+    color: COLORS.health,
     flex: 1,
     lineHeight: 16,
   },
@@ -2059,7 +2130,7 @@ const styles = StyleSheet.create({
   simulationHeader: {
     fontSize: 14,
     fontWeight: '800',
-    color: AMBER,
+    color: COLORS.food,
     marginTop: 20,
     marginBottom: 4,
     letterSpacing: 0.8,
@@ -2067,43 +2138,42 @@ const styles = StyleSheet.create({
   simulationCard: {
     padding: 18,
     borderRadius: 18,
-    backgroundColor: 'rgba(255,183,77,0.03)',
+    backgroundColor: COLORS.bg === '#080A0F' ? 'rgba(245, 158, 11, 0.03)' : 'rgba(245, 158, 11, 0.05)',
     borderWidth: 1,
-    borderColor: 'rgba(255,183,77,0.12)',
+    borderColor: 'rgba(245, 158, 11, 0.12)',
     gap: 14,
   },
   simText: {
     fontSize: 13,
-    color: '#FFF',
-    opacity: 0.7,
+    color: COLORS.textMuted,
     lineHeight: 18,
   },
   simulatorBtn: {
     flexDirection: 'row',
     height: 48,
     borderRadius: 12,
-    backgroundColor: AMBER,
+    backgroundColor: COLORS.food,
     justifyContent: 'center',
     alignItems: 'center',
     gap: 8,
   },
   simulatorBtnDisabled: {
-    backgroundColor: 'rgba(255,255,255,0.08)',
+    backgroundColor: COLORS.surface,
     opacity: 0.4,
   },
   simulatorBtnText: {
     fontSize: 15,
     fontWeight: '700',
-    color: '#0A0C1B',
+    color: '#FFF',
   },
 
   // Mock Notification styles
   mockNotificationCard: {
     padding: 16,
     borderRadius: 16,
-    backgroundColor: '#1E2142',
+    backgroundColor: COLORS.surfaceCard,
     borderWidth: 1.5,
-    borderColor: 'rgba(143, 102, 255, 0.25)',
+    borderColor: 'rgba(13, 148, 136, 0.25)',
     gap: 12,
     marginTop: 4,
   },
@@ -2115,7 +2185,7 @@ const styles = StyleSheet.create({
   mockNotifTitle: {
     fontSize: 14,
     fontWeight: '800',
-    color: LIGHT_PURPLE,
+    color: COLORS.mood,
     flex: 1,
   },
   mockNotifClose: {
@@ -2123,7 +2193,7 @@ const styles = StyleSheet.create({
   },
   mockNotifMsg: {
     fontSize: 14,
-    color: '#FFF',
+    color: COLORS.text,
     lineHeight: 20,
   },
   mockNotifMetaRow: {
@@ -2131,8 +2201,7 @@ const styles = StyleSheet.create({
   },
   mockNotifMetaLabel: {
     fontSize: 12,
-    opacity: 0.6,
-    color: '#FFF',
+    color: COLORS.textMuted,
   },
   mockActionsGrid: {
     flexDirection: 'row',
@@ -2148,9 +2217,9 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     height: 38,
     borderRadius: 10,
-    backgroundColor: 'rgba(255,255,255,0.05)',
+    backgroundColor: COLORS.surface,
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.1)',
+    borderColor: COLORS.surfaceBorder,
     justifyContent: 'center',
     alignItems: 'center',
     gap: 6,
@@ -2158,7 +2227,7 @@ const styles = StyleSheet.create({
   mockActionBtnText: {
     fontSize: 12,
     fontWeight: '700',
-    color: '#FFF',
+    color: COLORS.text,
   },
   mockActionBtnSmall: {
     flex: 1,
@@ -2166,14 +2235,13 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     backgroundColor: 'transparent',
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.06)',
+    borderColor: COLORS.surfaceBorder,
     justifyContent: 'center',
     alignItems: 'center',
   },
   mockActionBtnTextSmall: {
     fontSize: 12,
-    color: '#FFF',
-    opacity: 0.6,
+    color: COLORS.textMuted,
   },
 
   presetChipsScroll: {
@@ -2186,23 +2254,21 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 8,
     borderRadius: 10,
-    backgroundColor: 'rgba(255, 255, 255, 0.05)',
+    backgroundColor: COLORS.surface,
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.1)',
+    borderColor: COLORS.surfaceBorder,
   },
   presetChipSelected: {
-    backgroundColor: 'rgba(143, 102, 255, 0.15)',
-    borderColor: '#8F66FF',
+    backgroundColor: 'rgba(13, 148, 136, 0.15)',
+    borderColor: COLORS.primary,
   },
   presetChipText: {
     fontSize: 12,
-    color: '#FFF',
-    opacity: 0.6,
+    color: COLORS.textMuted,
   },
   presetChipTextSelected: {
-    opacity: 1,
     fontWeight: 'bold',
-    color: '#C4A8FF',
+    color: COLORS.mood,
   },
 
   dangerBtn: {
@@ -2224,10 +2290,10 @@ const styles = StyleSheet.create({
   // Permission Prompt Dialog styles
   promptBox: {
     width: '100%',
-    backgroundColor: '#1E1E2E',
+    backgroundColor: COLORS.surfaceCard,
     borderRadius: 20,
     borderWidth: 1,
-    borderColor: GLASS_BORDER,
+    borderColor: COLORS.surfaceBorder,
     padding: 24,
     alignItems: 'center',
   },
@@ -2235,7 +2301,7 @@ const styles = StyleSheet.create({
     width: 68,
     height: 68,
     borderRadius: 34,
-    backgroundColor: 'rgba(143, 102, 255, 0.1)',
+    backgroundColor: COLORS.primaryBg,
     justifyContent: 'center',
     alignItems: 'center',
     marginBottom: 16,
@@ -2243,15 +2309,14 @@ const styles = StyleSheet.create({
   promptTitle: {
     fontSize: 18,
     fontWeight: '800',
-    color: '#FFF',
+    color: COLORS.text,
     textAlign: 'center',
     marginBottom: 8,
     lineHeight: 24,
   },
   promptDesc: {
     fontSize: 13,
-    opacity: 0.7,
-    color: '#FFF',
+    color: COLORS.textMuted,
     textAlign: 'center',
     lineHeight: 18,
     marginBottom: 24,
@@ -2260,21 +2325,21 @@ const styles = StyleSheet.create({
     width: '100%',
     paddingVertical: 14,
     borderTopWidth: 1,
-    borderColor: 'rgba(255,255,255,0.08)',
+    borderColor: COLORS.surfaceBorder,
     alignItems: 'center',
   },
   promptActionText: {
     fontSize: 16,
     fontWeight: '700',
-    color: PURPLE,
+    color: COLORS.primary,
   },
 
   // Edit Card styles
   editCard: {
-    backgroundColor: CARD_BG,
+    backgroundColor: COLORS.surfaceCard,
     borderRadius: 20,
     borderWidth: 1,
-    borderColor: GLASS_BORDER,
+    borderColor: COLORS.surfaceBorder,
     padding: 20,
   },
   editHeader: {
@@ -2286,7 +2351,7 @@ const styles = StyleSheet.create({
   editTitle: {
     fontSize: 18,
     fontWeight: '800',
-    color: '#FFF',
+    color: COLORS.text,
   },
   editBody: {
     gap: 12,
@@ -2294,22 +2359,22 @@ const styles = StyleSheet.create({
   inputLabel: {
     fontSize: 13,
     fontWeight: '600',
-    color: LIGHT_PURPLE,
+    color: COLORS.mood,
   },
   textInput: {
     height: 46,
     borderRadius: 10,
-    backgroundColor: 'rgba(255,255,255,0.05)',
+    backgroundColor: COLORS.surface,
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.1)',
-    color: '#FFF',
+    borderColor: COLORS.surfaceBorder,
+    color: COLORS.text,
     paddingHorizontal: 12,
     fontSize: 14,
   },
   saveEditBtn: {
     height: 48,
     borderRadius: 12,
-    backgroundColor: PURPLE,
+    backgroundColor: COLORS.primary,
     justifyContent: 'center',
     alignItems: 'center',
     marginTop: 10,
@@ -2322,9 +2387,9 @@ const styles = StyleSheet.create({
   permissionModeCard: {
     padding: 16,
     borderRadius: 16,
-    backgroundColor: 'rgba(255,255,255,0.02)',
+    backgroundColor: COLORS.surface,
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.05)',
+    borderColor: COLORS.surfaceBorder,
     gap: 8,
     marginTop: 10,
     marginBottom: 4,
@@ -2332,12 +2397,11 @@ const styles = StyleSheet.create({
   permissionModeLabel: {
     fontSize: 14,
     fontWeight: '700',
-    color: '#FFF',
+    color: COLORS.text,
   },
   permissionModeDesc: {
     fontSize: 12,
-    color: '#FFF',
-    opacity: 0.6,
+    color: COLORS.textMuted,
     lineHeight: 16,
   },
   elevateBtn: {
@@ -2345,14 +2409,39 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
     paddingHorizontal: 12,
     borderRadius: 10,
-    backgroundColor: 'rgba(143, 102, 255, 0.1)',
+    backgroundColor: COLORS.primaryBg,
     borderWidth: 1,
-    borderColor: 'rgba(143, 102, 255, 0.25)',
+    borderColor: 'rgba(13, 148, 136, 0.25)',
     marginTop: 4,
   },
   elevateBtnText: {
     fontSize: 12,
     fontWeight: '700',
-    color: '#C4A8FF',
+    color: COLORS.mood,
+  },
+
+  // Theme Option Styles
+  themeOptionRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    padding: 16,
+    borderRadius: 12,
+    backgroundColor: COLORS.surface,
+    borderWidth: 1,
+    borderColor: COLORS.surfaceBorder,
+  },
+  themeOptionRowSelected: {
+    backgroundColor: COLORS.primaryBg,
+    borderColor: COLORS.primary,
+  },
+  themeOptionLabel: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: COLORS.textMuted,
+  },
+  themeOptionLabelSelected: {
+    color: COLORS.text,
+    fontWeight: '700',
   },
 });

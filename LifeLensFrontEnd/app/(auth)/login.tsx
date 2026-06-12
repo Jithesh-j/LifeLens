@@ -15,6 +15,7 @@ import { Link, useRouter } from 'expo-router';
 import { useAuth } from '@/context/auth';
 import { ThemedText } from '@/components/themed-text';
 import { IconSymbol } from '@/components/ui/icon-symbol';
+import { useThemeColors } from '@/constants/design-system';
 
 export default function LoginScreen() {
   const [email, setEmail] = useState('');
@@ -26,7 +27,10 @@ export default function LoginScreen() {
   const { login, resendOTP } = useAuth();
   const router = useRouter();
 
-  const primaryColor = '#8F66FF'; // Standard Premium Purple
+  const COLORS = useThemeColors();
+  const primaryColor = COLORS.primary; // Natural Brand Primary
+
+  const styles = React.useMemo(() => getStyles(COLORS), [COLORS]);
 
   // --- Adorable AI Character Animations ---
   const eyesScaleY = useRef(new Animated.Value(1)).current;
@@ -309,10 +313,10 @@ export default function LoginScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const getStyles = (COLORS: any) => StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#080916',
+    backgroundColor: COLORS.bg,
     justifyContent: 'center',
   },
   glowCircle1: {
@@ -322,7 +326,7 @@ const styles = StyleSheet.create({
     width: 360,
     height: 360,
     borderRadius: 180,
-    backgroundColor: 'rgba(143, 102, 255, 0.10)',
+    backgroundColor: 'rgba(13, 148, 136, 0.07)',
     zIndex: 0,
   },
   glowCircle2: {
@@ -332,7 +336,7 @@ const styles = StyleSheet.create({
     width: 380,
     height: 380,
     borderRadius: 190,
-    backgroundColor: 'rgba(59, 130, 246, 0.08)',
+    backgroundColor: 'rgba(96, 165, 250, 0.05)',
     zIndex: 0,
   },
   glowCircle3: {
@@ -342,7 +346,7 @@ const styles = StyleSheet.create({
     width: 300,
     height: 300,
     borderRadius: 150,
-    backgroundColor: 'rgba(6, 182, 212, 0.07)',
+    backgroundColor: 'rgba(20, 184, 166, 0.04)',
     zIndex: 0,
   },
   keyboardView: {
@@ -362,9 +366,9 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     marginBottom: 16,
-    backgroundColor: 'rgba(143, 102, 255, 0.12)',
+    backgroundColor: COLORS.primaryBg,
     borderWidth: 1.5,
-    borderColor: 'rgba(143, 102, 255, 0.25)',
+    borderColor: 'rgba(13, 148, 136, 0.25)',
     overflow: 'hidden',
     position: 'relative',
   },
@@ -392,7 +396,7 @@ const styles = StyleSheet.create({
     width: 10,
     height: 10,
     borderRadius: 5,
-    backgroundColor: '#8F66FF',
+    backgroundColor: COLORS.primary,
   },
   shutterHands: {
     position: 'absolute',
@@ -409,7 +413,7 @@ const styles = StyleSheet.create({
     width: 26,
     height: 26,
     borderRadius: 13,
-    backgroundColor: '#8F66FF',
+    backgroundColor: COLORS.primary,
     borderWidth: 1.5,
     borderColor: 'rgba(255,255,255,0.15)',
   },
@@ -417,7 +421,7 @@ const styles = StyleSheet.create({
     width: 26,
     height: 26,
     borderRadius: 13,
-    backgroundColor: '#8F66FF',
+    backgroundColor: COLORS.primary,
     borderWidth: 1.5,
     borderColor: 'rgba(255,255,255,0.15)',
   },
@@ -425,7 +429,7 @@ const styles = StyleSheet.create({
     width: 14,
     height: 4,
     borderRadius: 2,
-    backgroundColor: '#8F66FF',
+    backgroundColor: COLORS.primary,
     marginTop: 2,
   },
   title: {
@@ -443,11 +447,11 @@ const styles = StyleSheet.create({
   },
   form: {
     gap: 18,
-    backgroundColor: 'rgba(17, 19, 42, 0.65)',
+    backgroundColor: COLORS.surfaceCard,
     borderRadius: 24,
     padding: 24,
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.08)',
+    borderColor: COLORS.surfaceBorder,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 6 },
     shadowOpacity: 0.2,
@@ -511,8 +515,8 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     borderWidth: 1.5,
-    borderColor: 'rgba(255, 255, 255, 0.08)',
-    backgroundColor: 'rgba(255, 255, 255, 0.05)',
+    borderColor: 'rgba(255, 255, 255, 0.06)',
+    backgroundColor: 'rgba(255, 255, 255, 0.04)',
     borderRadius: 14,
     paddingHorizontal: 16,
     height: 52,
@@ -536,8 +540,8 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     marginTop: 10,
-    backgroundColor: '#8F66FF',
-    shadowColor: '#8F66FF',
+    backgroundColor: COLORS.primary,
+    shadowColor: COLORS.primary,
     shadowOffset: { width: 0, height: 6 },
     shadowOpacity: 0.25,
     shadowRadius: 12,
@@ -560,7 +564,7 @@ const styles = StyleSheet.create({
     opacity: 0.8,
   },
   registerLink: {
-    color: '#8F66FF',
+    color: COLORS.primary,
     fontSize: 14,
     fontWeight: '700',
   },

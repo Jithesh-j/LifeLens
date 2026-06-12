@@ -20,7 +20,7 @@ import { useThemeColor } from '@/hooks/use-theme-color';
 import { IconSymbol } from '@/components/ui/icon-symbol';
 import { api, ActivityResponse } from '@/services/api';
 import { useSchedule, parseNotesToEvents, ScheduleItem, getTodayDateStr } from '@/context/schedule';
-import { SPACING, TYPOGRAPHY, COLORS } from '@/constants/design-system';
+import { SPACING, TYPOGRAPHY, useThemeColors } from '@/constants/design-system';
 
 const detectTaskFromText = (text: string): string => {
   if (!text) return 'None detected';
@@ -88,12 +88,14 @@ export default function AddNoteModal() {
   const [soundInstance, setSoundInstance] = useState<Audio.Sound | null>(null);
   const [isPlaybackPlaying, setIsPlaybackPlaying] = useState(false);
 
+  const COLORS = useThemeColors();
   // Themes & Styling colors
   const primaryColor = COLORS.primary;
-  const navyHeaderColor = 'rgba(15, 17, 34, 0.65)';
   const accentGreen = COLORS.health;
   const cardBg = COLORS.surfaceCard;
   const textColor = COLORS.text;
+
+  const styles = React.useMemo(() => getStyles(COLORS), [COLORS]);
 
   // Sync state when content changes for the standard pre-populated blueprint mock hints
   const [hints, setHints] = useState<Array<{ text: string; color: string; bg: string }>>([]);
@@ -101,16 +103,16 @@ export default function AddNoteModal() {
   useEffect(() => {
     if (content.toLowerCase().includes('walk') || content.toLowerCase().includes('morning')) {
       setHints([
-        { text: 'Walking', color: '#34D399', bg: 'rgba(52, 211, 153, 0.08)' },
-        { text: 'Morning', color: '#8F66FF', bg: 'rgba(143, 102, 255, 0.08)' },
-        { text: '30 min', color: '#3B82F6', bg: 'rgba(59, 130, 246, 0.08)' },
-        { text: 'Focused', color: '#34D399', bg: 'rgba(52, 211, 153, 0.08)' },
-        { text: 'Work', color: '#8F66FF', bg: 'rgba(143, 102, 255, 0.08)' },
+        { text: 'Walking', color: '#10B981', bg: 'rgba(16, 185, 129, 0.08)' },
+        { text: 'Morning', color: '#0D9488', bg: 'rgba(13, 148, 136, 0.08)' },
+        { text: '30 min', color: '#60A5FA', bg: 'rgba(96, 165, 250, 0.08)' },
+        { text: 'Focused', color: '#10B981', bg: 'rgba(16, 185, 129, 0.08)' },
+        { text: 'Work', color: '#0D9488', bg: 'rgba(13, 148, 136, 0.08)' },
       ]);
     } else {
       setHints([
-        { text: 'Custom text', color: '#3B82F6', bg: 'rgba(59, 130, 246, 0.08)' },
-        { text: 'Draft Note', color: '#8F66FF', bg: 'rgba(143, 102, 255, 0.08)' },
+        { text: 'Custom text', color: '#60A5FA', bg: 'rgba(96, 165, 250, 0.08)' },
+        { text: 'Draft Note', color: '#0D9488', bg: 'rgba(13, 148, 136, 0.08)' },
       ]);
     }
   }, [content]);
@@ -702,11 +704,11 @@ export default function AddNoteModal() {
         style={{ flex: 1 }}>
         <ScrollView contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="handled">
           
-          {/* Calm Premium Navy Header */}
-          <View style={[styles.headerSection, { backgroundColor: navyHeaderColor }]}>
+          {/* Calm Premium Theme-Aware Header */}
+          <View style={styles.headerSection}>
             <View style={styles.headerTopBar}>
               <TouchableOpacity onPress={handleCancel} style={styles.backBtn}>
-                <ThemedText style={{ color: '#fff', fontSize: 16 }}>Cancel</ThemedText>
+                <ThemedText style={{ color: COLORS.text, fontSize: 16 }}>Cancel</ThemedText>
               </TouchableOpacity>
               <ThemedText style={styles.appName}>AuraJournal</ThemedText>
               <View style={styles.magicIcon}>
@@ -1135,12 +1137,12 @@ export default function AddNoteModal() {
   );
 }
 
-const styles = StyleSheet.create({
+const getStyles = (COLORS: any) => StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: COLORS.bg,
   },
-  glowCircle1: { position: 'absolute', top: 40, left: -100, width: 360, height: 360, borderRadius: 180, backgroundColor: 'rgba(143, 102, 255, 0.04)', zIndex: 0 },
+  glowCircle1: { position: 'absolute', top: 40, left: -100, width: 360, height: 360, borderRadius: 180, backgroundColor: 'rgba(13, 148, 136, 0.03)', zIndex: 0 },
   glowCircle2: { position: 'absolute', bottom: 100, right: -120, width: 380, height: 380, borderRadius: 190, backgroundColor: 'rgba(59, 130, 246, 0.03)', zIndex: 0 },
   glowCircle3: { position: 'absolute', top: '40%', right: -80, width: 300, height: 300, borderRadius: 150, backgroundColor: 'rgba(6, 182, 212, 0.02)', zIndex: 0 },
 
@@ -1157,7 +1159,7 @@ const styles = StyleSheet.create({
     borderBottomRightRadius: 24,
     borderBottomWidth: 1,
     borderBottomColor: COLORS.surfaceBorder,
-    backgroundColor: 'rgba(17, 19, 42, 0.4)',
+    backgroundColor: COLORS.bg,
   },
   headerTopBar: {
     flexDirection: 'row',
@@ -1170,12 +1172,12 @@ const styles = StyleSheet.create({
     paddingVertical: 6,
     paddingHorizontal: 12,
     borderRadius: 8,
-    backgroundColor: 'rgba(255, 255, 255, 0.03)',
+    backgroundColor: COLORS.surface,
     borderWidth: 1,
     borderColor: COLORS.surfaceBorder,
   },
   appName: {
-    color: '#fff',
+    color: COLORS.textMuted,
     fontSize: 14,
     fontWeight: '800',
     letterSpacing: 0.8,
@@ -1184,14 +1186,14 @@ const styles = StyleSheet.create({
   magicIcon: {
     padding: 6,
     borderRadius: 14,
-    backgroundColor: 'rgba(143, 102, 255, 0.08)',
+    backgroundColor: COLORS.primaryBg,
   },
   headerInfo: {
     marginTop: 16,
     zIndex: 1,
   },
   headerTitle: {
-    color: '#fff',
+    color: COLORS.text,
     ...TYPOGRAPHY.title,
   },
   headerSubtitle: {
@@ -1249,7 +1251,7 @@ const styles = StyleSheet.create({
     minHeight: 110,
     textAlignVertical: 'top',
     fontWeight: '600',
-    color: '#fff',
+    color: COLORS.text,
   },
   inputBoxFooter: {
     flexDirection: 'row',
@@ -1257,7 +1259,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginTop: 12,
     borderTopWidth: 1,
-    borderTopColor: 'rgba(255, 255, 255, 0.04)',
+    borderTopColor: COLORS.surfaceBorder,
     paddingTop: 10,
   },
   inputBoxFooterLeft: {
@@ -1342,7 +1344,7 @@ const styles = StyleSheet.create({
     paddingVertical: 5,
     borderRadius: 8,
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.02)',
+    borderColor: COLORS.surfaceBorder,
   },
   hintTagText: {
     fontSize: 11.5,
@@ -1385,7 +1387,7 @@ const styles = StyleSheet.create({
     width: 36,
     height: 4,
     borderRadius: 2,
-    backgroundColor: 'rgba(255, 255, 255, 0.15)',
+    backgroundColor: COLORS.surfaceBorder,
     marginBottom: 14,
   },
   sheetTitle: {
@@ -1477,9 +1479,9 @@ const styles = StyleSheet.create({
   eventReviewInput: {
     height: 36,
     borderRadius: 8,
-    backgroundColor: 'rgba(255, 255, 255, 0.01)',
+    backgroundColor: COLORS.surface,
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.03)',
+    borderColor: COLORS.surfaceBorder,
     paddingHorizontal: 10,
     fontSize: 12.5,
     fontWeight: '600',
@@ -1493,7 +1495,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginTop: 12,
     borderTopWidth: 1,
-    borderTopColor: 'rgba(255, 255, 255, 0.03)',
+    borderTopColor: COLORS.surfaceBorder,
     paddingTop: 8,
   },
   badge: {
@@ -1544,7 +1546,7 @@ const styles = StyleSheet.create({
   },
   divider: {
     height: 1,
-    backgroundColor: 'rgba(255, 255, 255, 0.04)',
+    backgroundColor: COLORS.surfaceBorder,
     marginVertical: 14,
   },
 

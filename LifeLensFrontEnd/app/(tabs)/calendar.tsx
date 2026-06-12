@@ -7,7 +7,7 @@ import { ThemedText } from '@/components/themed-text';
 import { useThemeColor } from '@/hooks/use-theme-color';
 import { IconSymbol } from '@/components/ui/icon-symbol';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { SPACING, TYPOGRAPHY, COLORS } from '@/constants/design-system';
+import { SPACING, TYPOGRAPHY, useThemeColors } from '@/constants/design-system';
 
 const getWeatherEmoji = (condition?: string) => {
   switch (condition?.toLowerCase()) {
@@ -88,12 +88,15 @@ export default function CalendarScreen() {
   const { calendarExpanded, setCalendarExpanded, selectedDate, setSelectedDate } = useCalendarUI();
   const insets = useSafeAreaInsets();
 
+  const COLORS = useThemeColors();
   // Themes & Styling Mappings
   const primaryColor = COLORS.primary;
   const headerNavy = COLORS.bg;
   const accentGreen = COLORS.health;
   const cardBg = COLORS.surfaceCard;
   const glassBorder = COLORS.surfaceBorder;
+
+  const styles = React.useMemo(() => getStyles(COLORS), [COLORS]);
 
   // Dynamic monthly planner structure based on selected date's month
   const calendarDaysMonth = React.useMemo(() => {
@@ -206,7 +209,7 @@ export default function CalendarScreen() {
       case 'green':
         return { bg: 'rgba(52, 211, 153, 0.08)', border: '#34D399', text: '#34D399' };
       case 'purple':
-        return { bg: 'rgba(143, 102, 255, 0.08)', border: '#8F66FF', text: '#C4A8FF' };
+        return { bg: 'rgba(13, 148, 136, 0.08)', border: '#0D9488', text: '#2DD4BF' };
       case 'yellow':
         return { bg: 'rgba(245, 158, 11, 0.08)', border: '#F59E0B', text: '#F59E0B' };
       case 'orange':
@@ -398,7 +401,7 @@ export default function CalendarScreen() {
                   </View>
                 </View>
                 <TouchableOpacity onPress={() => approveSuggestion(pendingSuggestion.id)} style={[styles.addSuggestionBtn, { backgroundColor: accentGreen }]}>
-                  <ThemedText style={[styles.addSuggestionText, { color: '#080916' }]}>+ Add</ThemedText>
+                  <ThemedText style={[styles.addSuggestionText, { color: COLORS.bg }]}>+ Add</ThemedText>
                 </TouchableOpacity>
               </View>
             )}
@@ -501,10 +504,10 @@ export default function CalendarScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const getStyles = (COLORS: any) => StyleSheet.create({
   container: { flex: 1, backgroundColor: COLORS.bg },
 
-  glowCircle1: { position: 'absolute', top: 40, left: -100, width: 360, height: 360, borderRadius: 180, backgroundColor: 'rgba(143, 102, 255, 0.04)', zIndex: 0 },
+  glowCircle1: { position: 'absolute', top: 40, left: -100, width: 360, height: 360, borderRadius: 180, backgroundColor: 'rgba(13, 148, 136, 0.03)', zIndex: 0 },
   glowCircle2: { position: 'absolute', bottom: 100, right: -120, width: 380, height: 380, borderRadius: 190, backgroundColor: 'rgba(59, 130, 246, 0.03)', zIndex: 0 },
   glowCircle3: { position: 'absolute', top: '40%', right: -80, width: 300, height: 300, borderRadius: 150, backgroundColor: 'rgba(6, 182, 212, 0.02)', zIndex: 0 },
 
@@ -518,14 +521,14 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.bg,
   },
   headerTop: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: SPACING.lg, zIndex: 1 },
-  headerTitle: { color: '#fff', ...TYPOGRAPHY.title, paddingTop: 4 },
+  headerTitle: { color: COLORS.text, ...TYPOGRAPHY.title, paddingTop: 4 },
   menuIcon: { padding: 6 },
   weekdayRow: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: SPACING.sm },
   weekdayText: { width: 40, textAlign: 'center', fontSize: 12, color: COLORS.textMuted, fontWeight: '700' },
   gridContainer: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between' },
   gridCell: { width: 40, height: 40, justifyContent: 'center', alignItems: 'center', marginVertical: 4, borderRadius: 20 },
   selectedCell: { shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.15, shadowRadius: 6, elevation: 3 },
-  dayText: { fontSize: 14, color: '#fff', fontWeight: '600' },
+  dayText: { fontSize: 14, color: COLORS.text, fontWeight: '600' },
   selectedDayText: { color: '#fff', fontWeight: '700' },
   eventDot: { width: 4, height: 4, borderRadius: 2, marginTop: 2 },
   eventsPanel: { flex: 1, paddingTop: SPACING.lg, paddingHorizontal: SPACING.xl },
@@ -541,7 +544,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: COLORS.surfaceBorder,
   },
-  dropdownText: { fontSize: 13.5, fontWeight: '700', color: '#fff', opacity: 0.8 },
+  dropdownText: { fontSize: 13.5, fontWeight: '700', color: COLORS.text, opacity: 0.8 },
   eventsScroll: { paddingBottom: 130, gap: SPACING.md },
   eventCard: {
     flexDirection: 'row',
@@ -557,8 +560,8 @@ const styles = StyleSheet.create({
   timeBadge: { fontSize: 12.5, fontWeight: '700', color: COLORS.textMuted },
   connector: { width: 1.5, height: 10, backgroundColor: 'rgba(255, 255, 255, 0.05)', marginLeft: 14, marginTop: 4 },
   cardContent: { flex: 1, paddingLeft: 10 },
-  cardTitle: { fontSize: 14, fontWeight: '700', color: '#fff' },
-  cardDuration: { fontSize: 12, opacity: 0.6, marginTop: 2, color: '#fff' },
+  cardTitle: { fontSize: 14, fontWeight: '700', color: COLORS.text },
+  cardDuration: { fontSize: 12, opacity: 0.6, marginTop: 2, color: COLORS.textMuted },
   emptyContainer: { alignItems: 'center', paddingTop: 60, gap: 10 },
   emptyText: { color: COLORS.textMuted, fontSize: 14, fontWeight: '600' },
   badgeContainer: { paddingHorizontal: 10, paddingVertical: 4, borderRadius: 8, alignSelf: 'flex-start', marginBottom: 4 },
@@ -575,11 +578,11 @@ const styles = StyleSheet.create({
   },
   selectedDayCard: { shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.15, shadowRadius: 6, elevation: 3 },
   dayName: { fontSize: 11, color: COLORS.textMuted, fontWeight: '600' },
-  dayNum: { fontSize: 15, color: '#fff', fontWeight: '700', marginTop: 2 },
+  dayNum: { fontSize: 15, color: COLORS.text, fontWeight: '700', marginTop: 2 },
   timelineScroll: { paddingHorizontal: SPACING.xl, paddingTop: SPACING.lg, paddingBottom: 130 },
   todayHeaderBox: { marginBottom: SPACING.md, zIndex: 1 },
-  todayTitle: { fontSize: 20, fontWeight: '800', color: '#fff' },
-  todayDateSub: { fontSize: 13, opacity: 0.5, marginTop: 2, color: '#fff' },
+  todayTitle: { fontSize: 20, fontWeight: '800', color: COLORS.text },
+  todayDateSub: { fontSize: 13, opacity: 0.5, marginTop: 2, color: COLORS.textMuted },
   suggestionBanner: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -596,7 +599,7 @@ const styles = StyleSheet.create({
   suggestionDesc: { fontSize: 11.5, marginTop: 2 },
   addSuggestionBtn: { paddingHorizontal: 14, paddingVertical: 6, borderRadius: 8 },
   addSuggestionText: { fontSize: 12.5, fontWeight: '700' },
-  timelineSectionTitle: { fontSize: 11.5, fontWeight: '800', opacity: 0.5, marginBottom: SPACING.md, textTransform: 'uppercase', letterSpacing: 0.8, color: '#fff', zIndex: 1 },
+  timelineSectionTitle: { fontSize: 11.5, fontWeight: '800', opacity: 0.5, marginBottom: SPACING.md, textTransform: 'uppercase', letterSpacing: 0.8, color: COLORS.textMuted, zIndex: 1 },
   timelineRow: { flexDirection: 'row', minHeight: 80 },
   timeLabelContainer: { width: 70, alignItems: 'flex-end', paddingRight: 10, paddingTop: 2 },
   timeLabel: { fontSize: 12, fontWeight: '700', color: COLORS.textMuted },

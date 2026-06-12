@@ -33,26 +33,59 @@ export const TYPOGRAPHY = {
   },
 };
 
-export const COLORS = {
-  bg: '#060713',                       // Dark neutral near black
+import { useColorScheme } from '@/hooks/use-color-scheme';
+
+export const LIGHT_COLORS = {
+  bg: '#F8FAFC',                       // Light slate-grey background
+  surface: 'rgba(0, 0, 0, 0.02)',       // Elevated surface card background
+  surfaceCard: '#FFFFFF',               // Pure white card surface
+  surfaceBorder: 'rgba(0, 0, 0, 0.08)', // Soft visible border
+  primary: '#0D9488',                  // Natural brand teal primary
+  primaryBg: 'rgba(13, 148, 136, 0.08)', // Muted brand teal background
+  text: '#0F172A',                      // Deep slate text
+  textMuted: 'rgba(15, 23, 42, 0.60)',  // Muted slate text
+  
+  // Semantic colors - natural and organic
+  health: '#10B981',                   // Organic Emerald
+  mood: '#8B5CF6',                     // Deep Lavender (light mode high contrast)
+  productivity: '#0D9488',             // Brand Teal
+  sleep: '#3B82F6',                    // Rich Slate Blue
+  food: '#D97706',                     // Rich Amber
+  
+  healthBg: 'rgba(16, 185, 129, 0.08)',
+  moodBg: 'rgba(139, 92, 246, 0.08)',
+  productivityBg: 'rgba(13, 148, 136, 0.08)',
+  sleepBg: 'rgba(59, 130, 246, 0.08)',
+  foodBg: 'rgba(217, 119, 6, 0.08)',
+};
+
+export const DARK_COLORS = {
+  bg: '#080A0F',                       // Dark neutral near black (Obsidian Charcoal)
   surface: 'rgba(255, 255, 255, 0.03)', // Elevated surface card background
-  surfaceCard: 'rgba(20, 22, 45, 0.65)', // Dedicated surface card
-  surfaceBorder: 'rgba(255, 255, 255, 0.06)', // Low contrast border
-  primary: '#8F66FF',                  // Brand primary accent
-  primaryBg: 'rgba(143, 102, 255, 0.12)', // Muted primary accent background
+  surfaceCard: 'rgba(22, 28, 38, 0.70)', // Sophisticated slate-obsidian surface
+  surfaceBorder: 'rgba(255, 255, 255, 0.05)', // Ultra low contrast border
+  primary: '#0D9488',                  // Natural brand teal primary
+  primaryBg: 'rgba(13, 148, 136, 0.10)', // Muted brand teal background
   text: '#FFFFFF',
   textMuted: 'rgba(255, 255, 255, 0.45)',
   
-  // Semantic colors - muted and clean
-  health: '#34D399',
-  mood: '#C4A8FF',
-  productivity: '#8F66FF',
-  sleep: '#3B82F6',
-  food: '#F59E0B',
+  // Semantic colors - natural and organic
+  health: '#10B981',                   // Organic Emerald
+  mood: '#A78BFA',                     // Calming Soft Lavender
+  productivity: '#14B8A6',             // Mint Teal
+  sleep: '#60A5FA',                    // Soft Slate Blue
+  food: '#F59E0B',                     // Warm Amber
   
-  healthBg: 'rgba(52, 211, 153, 0.08)',
-  moodBg: 'rgba(196, 168, 255, 0.08)',
-  productivityBg: 'rgba(143, 102, 255, 0.08)',
-  sleepBg: 'rgba(59, 130, 246, 0.08)',
+  healthBg: 'rgba(16, 185, 129, 0.08)',
+  moodBg: 'rgba(167, 139, 250, 0.08)',
+  productivityBg: 'rgba(20, 184, 166, 0.08)',
+  sleepBg: 'rgba(96, 165, 250, 0.08)',
   foodBg: 'rgba(245, 158, 11, 0.08)',
 };
+
+export const COLORS = DARK_COLORS;
+
+export function useThemeColors() {
+  const scheme = useColorScheme();
+  return scheme === 'dark' ? DARK_COLORS : LIGHT_COLORS;
+}

@@ -17,6 +17,7 @@ import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { useThemeColor } from '@/hooks/use-theme-color';
 import { IconSymbol } from '@/components/ui/icon-symbol';
+import { useThemeColors } from '@/constants/design-system';
 
 export default function VerifyEmailScreen() {
   const { email } = useLocalSearchParams<{ email: string }>();
@@ -33,9 +34,12 @@ export default function VerifyEmailScreen() {
   const textInputRef = useRef<TextInput>(null);
 
   const activeEmail = email || user?.email || '';
-  const primaryColor = '#8F66FF'; // AuraJournal Luxury Violet
+  const COLORS = useThemeColors();
+  const primaryColor = COLORS.primary; // Natural Brand Primary
   const textColor = useThemeColor({}, 'text');
   const tintColor = useThemeColor({}, 'tint');
+
+  const styles = React.useMemo(() => getStyles(COLORS), [COLORS]);
 
   // Cooldown countdown effect
   useEffect(() => {
@@ -224,11 +228,11 @@ export default function VerifyEmailScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const getStyles = (COLORS: any) => StyleSheet.create({
   container: {
     flex: 1,
     justifyContent: 'center',
-    backgroundColor: '#080916',
+    backgroundColor: COLORS.bg,
   },
   keyboardView: {
     flex: 1,
@@ -243,7 +247,7 @@ const styles = StyleSheet.create({
     width: 300,
     height: 300,
     borderRadius: 150,
-    backgroundColor: 'rgba(143, 102, 255, 0.08)',
+    backgroundColor: 'rgba(13, 148, 136, 0.06)',
     zIndex: 1,
   },
   glowCircle2: {
@@ -253,7 +257,7 @@ const styles = StyleSheet.create({
     width: 320,
     height: 320,
     borderRadius: 160,
-    backgroundColor: 'rgba(59, 130, 246, 0.06)',
+    backgroundColor: 'rgba(59, 130, 246, 0.04)',
     zIndex: 1,
   },
   header: {
@@ -338,14 +342,16 @@ const styles = StyleSheet.create({
     flex: 1,
     height: 52,
     borderWidth: 2,
+    borderColor: 'rgba(255, 255, 255, 0.08)',
     borderRadius: 12,
     justifyContent: 'center',
     alignItems: 'center',
     backgroundColor: 'rgba(255, 255, 255, 0.03)',
   },
   codeCellFocused: {
-    backgroundColor: 'rgba(143, 102, 255, 0.06)',
-    shadowColor: '#8F66FF',
+    backgroundColor: 'rgba(13, 148, 136, 0.05)',
+    borderColor: COLORS.primary,
+    shadowColor: COLORS.primary,
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.15,
     shadowRadius: 4,
@@ -369,7 +375,8 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     marginTop: 8,
-    shadowColor: '#8F66FF',
+    backgroundColor: COLORS.primary,
+    shadowColor: COLORS.primary,
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.2,
     shadowRadius: 8,
@@ -412,7 +419,7 @@ const styles = StyleSheet.create({
     opacity: 0.6,
   },
   backBtnText: {
-    color: 'rgba(255, 255, 255, 0.6)',
+    color: COLORS.textMuted,
     fontSize: 14,
     fontWeight: '600',
   },

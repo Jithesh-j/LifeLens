@@ -15,10 +15,10 @@ import { View, StyleSheet } from 'react-native';
 import * as Notifications from 'expo-notifications';
 import * as SecureStore from 'expo-secure-store';
 
-import { useColorScheme } from '@/hooks/use-color-scheme';
 import { AuthProvider } from '@/context/auth';
 import { ScheduleProvider } from '@/context/schedule';
 import { CalendarUIProvider } from '@/context/calendar-ui';
+import { ThemeProvider as CustomThemeProvider, useTheme } from '@/context/theme-context';
 import AnimatedSplash from '@/components/AnimatedSplash';
 
 // Hold the native splash until we're ready to show our animated one
@@ -29,7 +29,15 @@ export const unstable_settings = {
 };
 
 export default function RootLayout() {
-  const colorScheme = useColorScheme();
+  return (
+    <CustomThemeProvider>
+      <InnerRootLayout />
+    </CustomThemeProvider>
+  );
+}
+
+function InnerRootLayout() {
+  const { colorScheme } = useTheme();
   const [nativeSplashHidden, setNativeSplashHidden] = useState(false);
   const [splashAnimDone, setSplashAnimDone] = useState(false);
 
@@ -109,7 +117,7 @@ export default function RootLayout() {
                   <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
                   <Stack.Screen name="modal" options={{ presentation: 'modal', headerShown: false }} />
                 </Stack>
-                <StatusBar style="auto" />
+                <StatusBar style={colorScheme === 'dark' ? 'light' : 'dark'} />
 
                 {/* Cinematic animated splash overlay — covers everything until done */}
                 {nativeSplashHidden && !splashAnimDone && (

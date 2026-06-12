@@ -15,26 +15,41 @@ import { useThemeColor } from '@/hooks/use-theme-color';
 import { IconSymbol } from '@/components/ui/icon-symbol';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { api } from '@/services/api';
-import { COLORS, SPACING, TYPOGRAPHY } from '@/constants/design-system';
+import { useThemeColors, SPACING, TYPOGRAPHY } from '@/constants/design-system';
+import { useColorScheme } from '@/hooks/use-color-scheme';
 
 const SCREEN_WIDTH = Dimensions.get('window').width;
 
-// ── Design Tokens ──────────────────────────────────────────────────────────────
-const PURPLE = COLORS.primary;
-const NAVY = COLORS.bg;
-const GREEN = COLORS.health;
-const BLUE = COLORS.sleep;
-const AMBER = COLORS.food;
 const RED = '#EF4444';
-const DEEP_PURPLE = COLORS.surfaceCard;
-const LIGHT_PURPLE = COLORS.mood;
 
-const CATEGORY_THEME: Record<string, { color: string; bg: string; label: string; icon: any }> = {
-  health: { color: GREEN, bg: COLORS.healthBg, label: 'Health', icon: 'gym' },
-  work: { color: PURPLE, bg: COLORS.productivityBg, label: 'Work', icon: 'laptop' },
-  social: { color: AMBER, bg: COLORS.foodBg, label: 'Social', icon: 'groups' },
-  rest: { color: BLUE, bg: COLORS.sleepBg, label: 'Rest', icon: 'rest' },
-  other: { color: '#94A3B8', bg: 'rgba(148, 163, 184, 0.08)', label: 'Other', icon: 'rest' },
+const getCategoryTheme = (category: string | undefined, COLORS: any) => {
+  const cat = (category || 'other').toLowerCase();
+  const themeMap: Record<string, { color: string; bg: string; label: string; icon: any }> = {
+    health: { color: COLORS.health, bg: COLORS.healthBg, label: 'Health', icon: 'gym' },
+    work: { color: COLORS.primary, bg: COLORS.productivityBg, label: 'Work', icon: 'laptop' },
+    social: { color: COLORS.food, bg: COLORS.foodBg, label: 'Social', icon: 'groups' },
+    rest: { color: COLORS.sleep, bg: COLORS.sleepBg, label: 'Rest', icon: 'rest' },
+    other: { color: '#94A3B8', bg: 'rgba(148, 163, 184, 0.08)', label: 'Other', icon: 'rest' },
+  };
+  return themeMap[cat] || themeMap.other;
+};
+
+const getCategoryColor = (category: string | undefined, COLORS: any) => {
+  const cat = (category || 'other').toLowerCase();
+  if (cat === 'health') return COLORS.health;
+  if (cat === 'work') return COLORS.primary;
+  if (cat === 'social') return COLORS.food;
+  if (cat === 'rest') return COLORS.sleep;
+  return '#94A3B8';
+};
+
+const getCategoryBg = (category: string | undefined, COLORS: any) => {
+  const cat = (category || 'other').toLowerCase();
+  if (cat === 'health') return COLORS.healthBg;
+  if (cat === 'work') return COLORS.productivityBg;
+  if (cat === 'social') return COLORS.foodBg;
+  if (cat === 'rest') return COLORS.sleepBg;
+  return 'rgba(148, 163, 184, 0.08)';
 };
 
 type TabKey = 'patterns' | 'suggestions' | 'trends';
@@ -66,7 +81,14 @@ interface AnalyticsData {
   topCategory: string;
 }
 
-function analyzeSchedule(items: ScheduleItem[]): AnalyticsData {
+function analyzeSchedule(items: ScheduleItem[], COLORS: any): AnalyticsData {
+  const PURPLE = COLORS.primary;
+  const BLUE = COLORS.sleep;
+  const AMBER = COLORS.food;
+  const GREEN = COLORS.health;
+  const RED = '#EF4444';
+  const LIGHT_PURPLE = COLORS.mood;
+
   const todayStr = getTodayDateStr();
   const todayDate = new Date(todayStr + 'T00:00:00');
 
@@ -152,7 +174,7 @@ function analyzeSchedule(items: ScheduleItem[]): AnalyticsData {
       confidence: 0.82,
       icon: 'moon.fill' as any,
       color: LIGHT_PURPLE,
-      bg: 'rgba(196, 168, 255, 0.12)',
+      bg: 'rgba(167, 139, 250, 0.12)',
     },
     {
       insight: 'Swimming improves sleep quality',
@@ -260,7 +282,7 @@ function analyzeSchedule(items: ScheduleItem[]): AnalyticsData {
       time: formatHour(peakHour),
       icon: 'bolt.fill' as any,
       color: PURPLE,
-      bg: 'rgba(143, 102, 255, 0.12)',
+      bg: 'rgba(13, 148, 136, 0.12)',
     },
     {
       id: 's5',
@@ -269,7 +291,7 @@ function analyzeSchedule(items: ScheduleItem[]): AnalyticsData {
       time: '10:00 PM',
       icon: 'moon.fill' as any,
       color: LIGHT_PURPLE,
-      bg: 'rgba(196, 168, 255, 0.12)',
+      bg: 'rgba(167, 139, 250, 0.12)',
     },
   ];
 
@@ -315,13 +337,16 @@ function analyzeSchedule(items: ScheduleItem[]): AnalyticsData {
 // ── Mini Bar Chart ────────────────────────────────────────────────────────────
 function BarChart({
   data,
-  barColor = PURPLE,
+  barColor,
   height = 120,
 }: {
   data: { label: string; value: number }[];
   barColor?: string;
   height?: number;
 }) {
+  const COLORS = useThemeColors();
+  const { chartStyles } = useMemo(() => getStyles(COLORS), [COLORS]);
+  const resolvedBarColor = barColor || COLORS.primary;
   const maxVal = Math.max(...data.map((d) => d.value), 1);
 
   return (
@@ -337,7 +362,7 @@ function BarChart({
                     chartStyles.barFill,
                     {
                       height: Math.max(barHeight, 3),
-                      backgroundColor: barColor,
+                      backgroundColor: resolvedBarColor,
                       opacity: d.value > 0 ? 1 : 0.15,
                     },
                   ]}
@@ -360,6 +385,8 @@ function LineChart({
   data: { label: string; value: number; color: string }[];
   height?: number;
 }) {
+  const COLORS = useThemeColors();
+  const { chartStyles } = useMemo(() => getStyles(COLORS), [COLORS]);
   const values = data.map((d) => d.value);
   const maxVal = Math.max(...values, 1);
   const minVal = Math.min(...values, 0);
@@ -415,7 +442,7 @@ function LineChart({
                   width: lineLength,
                   transform: [{ rotate: `${angle}deg` }],
                   transformOrigin: 'left center',
-                  backgroundColor: PURPLE + '35',
+                  backgroundColor: COLORS.primary + '35',
                 },
               ]}
             />
@@ -480,6 +507,7 @@ function ProgressRing({
   strokeWidth?: number;
   label: string;
 }) {
+  const COLORS = useThemeColors();
   const innerSize = size - strokeWidth * 2;
   return (
     <View style={{ alignItems: 'center', gap: 6 }}>
@@ -510,7 +538,7 @@ function ProgressRing({
         />
         <ThemedText style={{ fontSize: 13, fontWeight: '800', color }}>{pct}%</ThemedText>
       </View>
-      <ThemedText style={{ color: '#FFF', fontSize: 10, fontWeight: '600', opacity: 0.5 }}>{label}</ThemedText>
+      <ThemedText style={{ color: COLORS.text, fontSize: 10, fontWeight: '600', opacity: 0.5 }}>{label}</ThemedText>
     </View>
   );
 }
@@ -539,6 +567,13 @@ function FadeSlide({ index, children }: { index: number; children: React.ReactNo
 // ═══════════════════════════════════════════════════════════════════════════════
 
 function PatternsTab({ data, cardBg }: { data: AnalyticsData; cardBg: string }) {
+  const COLORS = useThemeColors();
+  const PURPLE = COLORS.primary;
+  const BLUE = COLORS.sleep;
+  const AMBER = COLORS.food;
+  const GREEN = COLORS.health;
+  const { s } = useMemo(() => getStyles(COLORS), [COLORS]);
+
   return (
     <>
       {/* ── Key Metrics Strip ──────────────────────────────────────────────── */}
@@ -578,7 +613,7 @@ function PatternsTab({ data, cardBg }: { data: AnalyticsData; cardBg: string }) 
           {/* Category Bars */}
           <View style={s.categoryList}>
             {data.categoryBreakdown.map((cat) => {
-              const theme = CATEGORY_THEME[cat.category] || CATEGORY_THEME.other;
+              const theme = getCategoryTheme(cat.category, COLORS);
               return (
                 <View key={cat.category} style={s.categoryRow}>
                   <View style={s.categoryLeft}>
@@ -602,7 +637,7 @@ function PatternsTab({ data, cardBg }: { data: AnalyticsData; cardBg: string }) 
           {/* Category Ring Summary */}
           <View style={s.ringRow}>
             {data.categoryBreakdown.slice(0, 4).map((cat) => {
-              const theme = CATEGORY_THEME[cat.category] || CATEGORY_THEME.other;
+              const theme = getCategoryTheme(cat.category, COLORS);
               return (
                 <ProgressRing
                   key={cat.category}
@@ -681,25 +716,6 @@ function PatternsTab({ data, cardBg }: { data: AnalyticsData; cardBg: string }) 
 //  TAB: SUGGESTIONS
 // ═══════════════════════════════════════════════════════════════════════════════
 
-// getCategoryColor and getCategoryBg map backend category string to frontend colors dynamically
-const getCategoryColor = (category?: string) => {
-  const cat = (category || 'other').toLowerCase();
-  if (cat === 'health') return GREEN;
-  if (cat === 'work') return PURPLE;
-  if (cat === 'social') return AMBER;
-  if (cat === 'rest') return BLUE;
-  return '#94A3B8';
-};
-
-const getCategoryBg = (category?: string) => {
-  const cat = (category || 'other').toLowerCase();
-  if (cat === 'health') return 'rgba(52, 211, 153, 0.08)';
-  if (cat === 'work') return 'rgba(143, 102, 255, 0.08)';
-  if (cat === 'social') return 'rgba(245, 158, 11, 0.08)';
-  if (cat === 'rest') return 'rgba(59, 130, 246, 0.08)';
-  return 'rgba(148, 163, 184, 0.08)';
-};
-
 function SuggestionsTab({
   suggestions,
   loading,
@@ -713,6 +729,9 @@ function SuggestionsTab({
   totalActivities: number;
   cardBg: string;
 }) {
+  const COLORS = useThemeColors();
+  const PURPLE = COLORS.primary;
+  const { s } = useMemo(() => getStyles(COLORS), [COLORS]);
   const [expandedId, setExpandedId] = useState<string | null>(null);
 
   if (loading) {
@@ -730,7 +749,7 @@ function SuggestionsTab({
           </View>
         </FadeSlide>
         {[1, 2, 3].map((x) => (
-          <View key={x} style={[s.suggestionCard, { backgroundColor: cardBg, opacity: 0.5, borderLeftWidth: 4, borderLeftColor: '#8F66FF30' }]}>
+          <View key={x} style={[s.suggestionCard, { backgroundColor: cardBg, opacity: 0.5, borderLeftWidth: 4, borderLeftColor: PURPLE + '30' }]}>
             <View style={{ flexDirection: 'row', gap: 14 }}>
               <View style={{ width: 44, height: 44, borderRadius: 14, backgroundColor: '#8E8E9320' }} />
               <View style={{ flex: 1, gap: 8 }}>
@@ -779,8 +798,8 @@ function SuggestionsTab({
         <FadeSlide index={1}>
           <View style={[s.suggestionCard, { backgroundColor: cardBg, alignItems: 'center', paddingVertical: 40, gap: 12 }]}>
             <IconSymbol size={36} name="sparkles" color={PURPLE} />
-            <ThemedText style={{ fontSize: 16, fontWeight: '700', color: '#FFF' }}>No Suggestions Yet</ThemedText>
-            <ThemedText style={{ color: '#FFF', fontSize: 13, opacity: 0.5, textAlign: 'center', paddingHorizontal: 20 }}>
+            <ThemedText style={{ fontSize: 16, fontWeight: '700', color: COLORS.text }}>No Suggestions Yet</ThemedText>
+            <ThemedText style={{ color: COLORS.textMuted, fontSize: 13, opacity: 0.5, textAlign: 'center', paddingHorizontal: 20 }}>
               Start logging your activities, workouts, work sessions, or voice recordings, and AuraJournal will dynamically analyze your behaviors.
             </ThemedText>
             <TouchableOpacity
@@ -798,8 +817,8 @@ function SuggestionsTab({
         </FadeSlide>
       ) : (
         suggestions.map((sug, idx) => {
-          const color = getCategoryColor(sug.category);
-          const bg = getCategoryBg(sug.category);
+          const color = getCategoryColor(sug.category, COLORS);
+          const bg = getCategoryBg(sug.category, COLORS);
           return (
             <FadeSlide key={sug.id || `sug_${idx}`} index={idx + 1}>
               <TouchableOpacity
@@ -824,7 +843,7 @@ function SuggestionsTab({
                     <IconSymbol size={20} name={sug.icon || 'sparkles'} color={color} />
                   </View>
                   <View style={{ flex: 1 }}>
-                    <ThemedText style={[s.suggText, { color: '#FFF', fontSize: 15, fontWeight: '800' }]}>
+                    <ThemedText style={[s.suggText, { color: COLORS.text, fontSize: 15, fontWeight: '800' }]}>
                       {sug.title}
                     </ThemedText>
                     
@@ -855,7 +874,7 @@ function SuggestionsTab({
                     <View style={[s.suggDivider, { backgroundColor: color + '15' }]} />
                     
                     <ThemedText style={s.suggExpandLabel}>ACTIONABLE RECOMMENDATION</ThemedText>
-                    <ThemedText style={[s.suggExpandValue, { color: '#FFF', marginBottom: 12, fontSize: 13.5, fontWeight: '600' }]}>
+                    <ThemedText style={[s.suggExpandValue, { color: COLORS.text, marginBottom: 12, fontSize: 13.5, fontWeight: '600' }]}>
                       {sug.recommendation}
                     </ThemedText>
                     
@@ -881,6 +900,13 @@ function SuggestionsTab({
 // ═══════════════════════════════════════════════════════════════════════════════
 
 function TrendsTab({ data, cardBg }: { data: AnalyticsData; cardBg: string }) {
+  const COLORS = useThemeColors();
+  const PURPLE = COLORS.primary;
+  const BLUE = COLORS.sleep;
+  const AMBER = COLORS.food;
+  const GREEN = COLORS.health;
+  const { s } = useMemo(() => getStyles(COLORS), [COLORS]);
+
   return (
     <>
       {/* ── Weekly Activity Volume ─────────────────────────────────────────── */}
@@ -995,8 +1021,12 @@ export default function InsightsScreen() {
   const [backendSuggestions, setBackendSuggestions] = useState<any[]>([]);
   const [suggestionsLoading, setSuggestionsLoading] = useState<boolean>(false);
 
-  const cardBg = DEEP_PURPLE;
-  const data = useMemo(() => analyzeSchedule(scheduleItems), [scheduleItems]);
+  const COLORS = useThemeColors();
+  const PURPLE = COLORS.primary;
+  const LIGHT_PURPLE = COLORS.mood;
+  const cardBg = COLORS.surfaceCard;
+  const { s } = useMemo(() => getStyles(COLORS), [COLORS]);
+  const data = useMemo(() => analyzeSchedule(scheduleItems, COLORS), [scheduleItems, COLORS]);
 
   const tabs: { key: TabKey; label: string; icon: any }[] = [
     { key: 'patterns', label: 'Patterns', icon: 'brain.head.profile' },
@@ -1104,17 +1134,27 @@ export default function InsightsScreen() {
 //  STYLES
 // ═══════════════════════════════════════════════════════════════════════════════
 
-const chartStyles = StyleSheet.create({
+const getStyles = (COLORS: any) => {
+  const PURPLE = COLORS.primary;
+  const NAVY = COLORS.bg;
+  const GREEN = COLORS.health;
+  const BLUE = COLORS.sleep;
+  const AMBER = COLORS.food;
+  const RED = '#EF4444';
+  const DEEP_PURPLE = COLORS.surfaceCard;
+  const LIGHT_PURPLE = COLORS.mood;
+
+  const chartStyles = StyleSheet.create({
   barChartContainer: { marginTop: SPACING.sm },
   barRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-end', flex: 1 },
   barCol: { alignItems: 'center', flex: 1 },
-  barTrack: { justifyContent: 'flex-end', width: 14, borderRadius: 7, backgroundColor: 'rgba(255, 255, 255, 0.02)' },
+  barTrack: { justifyContent: 'flex-end', width: 14, borderRadius: 7, backgroundColor: COLORS.surface },
   barFill: { width: 14, borderRadius: 7 },
   barLabel: { color: COLORS.textMuted, fontSize: 10, fontWeight: '600', marginTop: SPACING.xs },
 
   lineChartContainer: { marginTop: SPACING.sm, position: 'relative' },
   lineArea: { position: 'relative' },
-  gridLine: { position: 'absolute', left: 0, right: 0, height: 1, backgroundColor: 'rgba(255, 255, 255, 0.03)' },
+  gridLine: { position: 'absolute', left: 0, right: 0, height: 1, backgroundColor: COLORS.surfaceBorder },
   dataDot: { position: 'absolute', width: 8, height: 8, borderRadius: 4, borderWidth: 1.5, borderColor: COLORS.bg },
   connectLine: { position: 'absolute', height: 1.5, borderRadius: 0.75 },
   lineLabels: { flexDirection: 'row', marginTop: SPACING.xs },
@@ -1124,13 +1164,13 @@ const chartStyles = StyleSheet.create({
 const s = StyleSheet.create({
   container: { flex: 1, backgroundColor: COLORS.bg },
 
-  glowCircle1: { position: 'absolute', top: 20, left: -80, width: 340, height: 340, borderRadius: 170, backgroundColor: 'rgba(143, 102, 255, 0.05)', zIndex: 0 },
+  glowCircle1: { position: 'absolute', top: 20, left: -80, width: 340, height: 340, borderRadius: 170, backgroundColor: 'rgba(13, 148, 136, 0.04)', zIndex: 0 },
   glowCircle2: { position: 'absolute', bottom: 60, right: -100, width: 360, height: 360, borderRadius: 180, backgroundColor: 'rgba(59, 130, 246, 0.04)', zIndex: 0 },
-  glowCircle3: { position: 'absolute', top: '35%', right: -60, width: 280, height: 280, borderRadius: 140, backgroundColor: 'rgba(6, 182, 212, 0.03)', zIndex: 0 },
+  glowCircle3: { position: 'absolute', top: '35%', right: -60, width: 280, height: 280, borderRadius: 140, backgroundColor: 'rgba(20, 184, 166, 0.03)', zIndex: 0 },
 
   // Header
   header: {
-    backgroundColor: 'rgba(11, 12, 28, 0.45)',
+    backgroundColor: COLORS.bg,
     paddingHorizontal: SPACING.xl,
     paddingBottom: SPACING.lg,
     borderBottomLeftRadius: 24,
@@ -1196,19 +1236,19 @@ const s = StyleSheet.create({
   categoryLeft: { flexDirection: 'row', alignItems: 'center', width: 68, gap: 6 },
   categoryDot: { width: 6, height: 6, borderRadius: 3 },
   categoryLabel: { color: COLORS.text, fontSize: 11.5, fontWeight: '600', opacity: 0.8 },
-  categoryBarTrack: { flex: 1, height: 6, borderRadius: 3, backgroundColor: 'rgba(255, 255, 255, 0.02)' },
+  categoryBarTrack: { flex: 1, height: 6, borderRadius: 3, backgroundColor: COLORS.surface },
   categoryBarFill: { height: 6, borderRadius: 3 },
   categoryPct: { fontSize: 11.5, fontWeight: '700', width: 32, textAlign: 'right' },
   ringRow: { flexDirection: 'row', justifyContent: 'space-around', marginTop: SPACING.lg },
 
   // Correlations
-  correlationItem: { flexDirection: 'row', gap: 12, paddingVertical: SPACING.md, borderTopWidth: 1, borderTopColor: 'rgba(255, 255, 255, 0.04)' },
+  correlationItem: { flexDirection: 'row', gap: 12, paddingVertical: SPACING.md, borderTopWidth: 1, borderTopColor: COLORS.surfaceBorder },
   corrIcon: { width: 34, height: 34, borderRadius: 10, justifyContent: 'center', alignItems: 'center', marginTop: 2 },
   corrContent: { flex: 1 },
   corrTitle: { color: COLORS.text, ...TYPOGRAPHY.header, fontSize: 13.5, fontWeight: '700', marginBottom: 2 },
   corrDesc: { color: COLORS.textMuted, ...TYPOGRAPHY.body, fontSize: 12, lineHeight: 17 },
   confidenceRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: SPACING.xs },
-  confidenceTrack: { flex: 1, height: 3, borderRadius: 1.5, backgroundColor: 'rgba(255, 255, 255, 0.02)' },
+  confidenceTrack: { flex: 1, height: 3, borderRadius: 1.5, backgroundColor: COLORS.surface },
   confidenceFill: { height: 3, borderRadius: 1.5 },
   confidenceText: { fontSize: 10, fontWeight: '700', width: 28 },
 
@@ -1261,3 +1301,5 @@ const s = StyleSheet.create({
   footer: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', marginTop: SPACING.lg, paddingVertical: SPACING.sm },
   footerText: { color: COLORS.textMuted, fontSize: 11, fontWeight: '500' },
 });
+return { chartStyles, s };
+};

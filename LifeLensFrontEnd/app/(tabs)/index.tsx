@@ -26,17 +26,9 @@ import * as Location from 'expo-location';
 
 const SCREEN_WIDTH = Dimensions.get('window').width;
 
-import { SPACING, TYPOGRAPHY, COLORS } from '@/constants/design-system';
+import { SPACING, TYPOGRAPHY, useThemeColors } from '@/constants/design-system';
+import { useColorScheme } from '@/hooks/use-color-scheme';
 
-// ── Premium Dark-Mode Colors ────────────────────────────────────────────────
-const PURPLE = COLORS.primary;
-const LIGHT_PURPLE = COLORS.mood;
-const DARK_BG = COLORS.bg;
-const CARD_BG = COLORS.surfaceCard;
-const GLASS_BORDER = COLORS.surfaceBorder;
-const GREEN = COLORS.health;
-const BLUE = COLORS.sleep;
-const AMBER = COLORS.food;
 const RED = '#EF4444';
 
 // ── Time-Based Greeting ─────────────────────────────────────────────────────
@@ -113,16 +105,6 @@ const ICON_MAP: Record<string, any> = {
   rest: 'rest',
 };
 
-const COLOR_MAP: Record<string, string> = {
-  green: GREEN,
-  purple: PURPLE,
-  yellow: AMBER,
-  gray: BLUE,
-  orange: '#FF8A65',
-  blue: BLUE,
-  red: RED,
-};
-
 const getWeatherEmoji = (condition?: string) => {
   switch (condition?.toLowerCase()) {
     case 'sunny': return '☀️';
@@ -139,7 +121,23 @@ const getWeatherEmoji = (condition?: string) => {
 function mergeEvents(
   localItems: ScheduleItem[],
   todayStr: string,
+  COLORS: any,
 ): UnifiedEvent[] {
+  const PURPLE = COLORS.primary;
+  const BLUE = COLORS.sleep;
+  const AMBER = COLORS.food;
+  const GREEN = COLORS.health;
+
+  const COLOR_MAP: Record<string, string> = {
+    green: GREEN,
+    purple: PURPLE,
+    yellow: AMBER,
+    gray: BLUE,
+    orange: '#FF8A65',
+    blue: BLUE,
+    red: RED,
+  };
+
   const events: (UnifiedEvent & { _sortKey: number })[] = [];
   const nowMs = Date.now();
 
@@ -189,7 +187,12 @@ interface HomeAnalytics {
   } | null;
 }
 
-function computeHomeAnalytics(items: ScheduleItem[], todayStr: string): HomeAnalytics {
+function computeHomeAnalytics(items: ScheduleItem[], todayStr: string, COLORS: any): HomeAnalytics {
+  const PURPLE = COLORS.primary;
+  const BLUE = COLORS.sleep;
+  const AMBER = COLORS.food;
+  const GREEN = COLORS.health;
+
   const todayItems = items.filter((i) => i.date === todayStr);
   const healthCount = todayItems.filter((x) => x.category === 'health').length;
   const workCount = todayItems.filter((x) => x.category === 'work').length;
@@ -371,6 +374,18 @@ export default function HomeScreen() {
   const { scheduleItems, fetchUserSchedule } = useSchedule();
   const router = useRouter();
   const navigation = useNavigation();
+
+  const COLORS = useThemeColors();
+  const PURPLE = COLORS.primary;
+  const LIGHT_PURPLE = COLORS.mood;
+  const DARK_BG = COLORS.bg;
+  const CARD_BG = COLORS.surfaceCard;
+  const GLASS_BORDER = COLORS.surfaceBorder;
+  const GREEN = COLORS.health;
+  const BLUE = COLORS.sleep;
+  const AMBER = COLORS.food;
+
+  const s = useMemo(() => getStyles(COLORS), [COLORS]);
 
   // Location Suggestion states
   const [locEnabled, setLocEnabled] = useState(false);
@@ -1059,8 +1074,8 @@ export default function HomeScreen() {
     return () => clearInterval(timer);
   }, [fetchUserSchedule]);
 
-  const analytics = useMemo(() => computeHomeAnalytics(scheduleItems, todayStr), [scheduleItems, todayStr, lastRefreshTime]);
-  const mergedEvents = useMemo(() => mergeEvents(scheduleItems, todayStr), [scheduleItems, todayStr]);
+  const analytics = useMemo(() => computeHomeAnalytics(scheduleItems, todayStr, COLORS), [scheduleItems, todayStr, lastRefreshTime, COLORS]);
+  const mergedEvents = useMemo(() => mergeEvents(scheduleItems, todayStr, COLORS), [scheduleItems, todayStr, COLORS]);
 
   const quickAddActivities = [
     { label: 'Walk', icon: 'figure.walk' as const, color: GREEN, bg: 'rgba(129, 199, 132, 0.12)' },
@@ -1185,7 +1200,7 @@ export default function HomeScreen() {
                 <IconSymbol size={18} name="sparkles" color={PURPLE} />
                 <View>
                   <ThemedText style={s.suggestionHeaderText}>AI Suggestion</ThemedText>
-                  <ThemedText style={{ fontSize: 10, color: 'rgba(255,255,255,0.35)', fontWeight: '600', marginTop: 1 }}>
+                  <ThemedText style={{ fontSize: 10, color: COLORS.textMuted, fontWeight: '600', marginTop: 1 }}>
                     ⏱️ Hourly auto-refresh active
                   </ThemedText>
                 </View>
@@ -1683,19 +1698,29 @@ export default function HomeScreen() {
 // ═════════════════════════════════════════════════════════════════════════════
 //  STYLES
 // ═════════════════════════════════════════════════════════════════════════════
-const s = StyleSheet.create({
+const getStyles = (COLORS: any) => {
+  const PURPLE = COLORS.primary;
+  const LIGHT_PURPLE = COLORS.mood;
+  const DARK_BG = COLORS.bg;
+  const CARD_BG = COLORS.surfaceCard;
+  const GLASS_BORDER = COLORS.surfaceBorder;
+  const GREEN = COLORS.health;
+  const BLUE = COLORS.sleep;
+  const AMBER = COLORS.food;
+
+  return StyleSheet.create({
   container: { flex: 1, backgroundColor: DARK_BG },
 
-  glowCircle1: { position: 'absolute', top: 40, left: -100, width: 360, height: 360, borderRadius: 180, backgroundColor: 'rgba(143, 102, 255, 0.04)' },
+  glowCircle1: { position: 'absolute', top: 40, left: -100, width: 360, height: 360, borderRadius: 180, backgroundColor: 'rgba(13, 148, 136, 0.03)' },
   glowCircle2: { position: 'absolute', bottom: 100, right: -120, width: 380, height: 380, borderRadius: 190, backgroundColor: 'rgba(59, 130, 246, 0.03)' },
-  glowCircle3: { position: 'absolute', top: '40%', right: -80, width: 300, height: 300, borderRadius: 150, backgroundColor: 'rgba(6, 182, 212, 0.02)' },
+  glowCircle3: { position: 'absolute', top: '40%', right: -80, width: 300, height: 300, borderRadius: 150, backgroundColor: 'rgba(20, 184, 166, 0.02)' },
 
   scrollContent: { paddingHorizontal: SPACING.xl, paddingBottom: 130, gap: SPACING.lg },
 
   // Greeting
   greetingSection: { marginBottom: SPACING.xs },
   greetingTopRow: { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between' },
-  greetingText: { color: '#fff', fontSize: 20, fontWeight: '700', letterSpacing: -0.2, lineHeight: 26, paddingTop: 4 },
+  greetingText: { color: COLORS.text, fontSize: 20, fontWeight: '700', letterSpacing: -0.2, lineHeight: 26, paddingTop: 4 },
   dateLabel: { color: COLORS.textMuted, fontSize: 13, fontWeight: '600' },
   weatherLabel: { color: COLORS.primary, fontSize: 13, fontWeight: '600' },
   notifBadge: { width: 38, height: 38, borderRadius: 19, backgroundColor: 'rgba(255, 255, 255, 0.03)', borderWidth: 1, borderColor: GLASS_BORDER, justifyContent: 'center', alignItems: 'center', marginTop: 2 },
@@ -1718,12 +1743,12 @@ const s = StyleSheet.create({
     }),
   },
   suggestionHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: SPACING.md },
-  suggestionHeaderText: { color: '#fff', fontSize: 15, fontWeight: '700' },
-  bestForYouBadge: { backgroundColor: 'rgba(143, 102, 255, 0.08)', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 6 },
+  suggestionHeaderText: { color: COLORS.text, fontSize: 15, fontWeight: '700' },
+  bestForYouBadge: { backgroundColor: 'rgba(13, 148, 136, 0.08)', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 6 },
   bestForYouText: { color: PURPLE, fontSize: 9, fontWeight: '800', letterSpacing: 0.5 },
   suggestionBody: { flexDirection: 'row', gap: SPACING.md, marginBottom: SPACING.md },
   suggestionIconCircle: { width: 44, height: 44, borderRadius: 12, justifyContent: 'center', alignItems: 'center' },
-  suggestionText: { color: '#fff', fontSize: 14, fontWeight: '700', lineHeight: 20, marginBottom: 4 },
+  suggestionText: { color: COLORS.text, fontSize: 14, fontWeight: '700', lineHeight: 20, marginBottom: 4 },
   suggestionEvidence: { color: COLORS.textMuted, fontSize: 12, fontWeight: '500', lineHeight: 17, marginBottom: 8 },
   suggestionMetaRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   confidencePill: { backgroundColor: 'rgba(52, 211, 153, 0.08)', paddingHorizontal: 8, paddingVertical: 3, borderRadius: 6 },
@@ -1739,7 +1764,7 @@ const s = StyleSheet.create({
 
   // Section Headers
   sectionHeaderRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: SPACING.sm },
-  sectionTitle: { color: '#fff', fontSize: 15, fontWeight: '700' },
+  sectionTitle: { color: COLORS.text, fontSize: 15, fontWeight: '700' },
   sectionLink: { color: PURPLE, fontSize: 13, fontWeight: '600' },
 
   // Schedule Card
@@ -1761,13 +1786,13 @@ const s = StyleSheet.create({
   scheduleRow: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: SPACING.lg, paddingVertical: SPACING.md, gap: SPACING.md },
   scheduleRowBorder: { borderBottomWidth: 1, borderBottomColor: 'rgba(255, 255, 255, 0.04)' },
   scheduleTime: { color: COLORS.primary, fontSize: 13, fontWeight: '700', width: 78 },
-  scheduleTitle: { flex: 1, color: '#fff', fontSize: 13.5, fontWeight: '600' },
+  scheduleTitle: { flex: 1, color: COLORS.text, fontSize: 13.5, fontWeight: '600' },
   scheduleIconCircle: { width: 30, height: 30, borderRadius: 8, justifyContent: 'center', alignItems: 'center' },
   emptySchedule: { alignItems: 'center', paddingVertical: 24, gap: 10 },
   emptyScheduleText: { color: COLORS.textMuted, fontSize: 13, fontWeight: '500' },
 
   // Connect Google
-  connectGoogleBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', marginTop: 10, height: 40, borderRadius: 10, borderWidth: 1, borderColor: PURPLE, backgroundColor: 'rgba(143, 102, 255, 0.04)' },
+  connectGoogleBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', marginTop: 10, height: 40, borderRadius: 10, borderWidth: 1, borderColor: PURPLE, backgroundColor: 'rgba(13, 148, 136, 0.04)' },
   connectGoogleText: { color: PURPLE, fontSize: 13, fontWeight: '700' },
 
   // Daily Summary
@@ -1798,7 +1823,7 @@ const s = StyleSheet.create({
   quickAddStrip: { flexDirection: 'row', justifyContent: 'space-between' },
   quickAddBtn: { alignItems: 'center', gap: 6, width: (SCREEN_WIDTH - 40) / 5 },
   quickAddCircle: { width: 44, height: 44, borderRadius: 22, justifyContent: 'center', alignItems: 'center' },
-  quickAddLabel: { color: '#fff', fontSize: 11, fontWeight: '600', marginTop: 2 },
+  quickAddLabel: { color: COLORS.text, fontSize: 11, fontWeight: '600', marginTop: 2 },
 
   // Footer
   footer: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', marginTop: 10, paddingVertical: 8 },
@@ -1823,13 +1848,13 @@ const s = StyleSheet.create({
   modalContainer: {
     width: '100%',
     maxWidth: 400,
-    backgroundColor: 'rgba(22, 25, 50, 0.75)',
+    backgroundColor: 'rgba(22, 28, 38, 0.85)',
     borderRadius: 24,
     borderWidth: 1.2,
     borderColor: 'rgba(255, 255, 255, 0.12)',
     padding: 22,
     gap: 12,
-    shadowColor: '#8F66FF',
+    shadowColor: PURPLE,
     shadowOffset: { width: 0, height: 10 },
     shadowOpacity: 0.15,
     shadowRadius: 24,
@@ -1852,7 +1877,7 @@ const s = StyleSheet.create({
   modalTitle: {
     fontSize: 16,
     fontWeight: '800',
-    color: '#fff',
+    color: COLORS.text,
   },
   closeBtn: {
     width: 32,
@@ -1876,16 +1901,16 @@ const s = StyleSheet.create({
   modalSubSectionLabel: {
     fontSize: 11,
     fontWeight: '800',
-    color: 'rgba(255, 255, 255, 0.5)',
+    color: COLORS.textMuted,
     marginBottom: 6,
   },
   modalInput: {
     height: 48,
     borderRadius: 12,
-    backgroundColor: 'rgba(255, 255, 255, 0.05)',
+    backgroundColor: COLORS.surface,
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.1)',
-    color: '#fff',
+    borderColor: COLORS.surfaceBorder,
+    color: COLORS.text,
     fontSize: 15,
     fontWeight: '700',
     paddingHorizontal: 16,
@@ -1900,9 +1925,9 @@ const s = StyleSheet.create({
     width: (SCREEN_WIDTH - 84 - 24) / 6,
     height: 38,
     borderRadius: 10,
-    backgroundColor: 'rgba(255, 255, 255, 0.04)',
+    backgroundColor: COLORS.surface,
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.06)',
+    borderColor: COLORS.surfaceBorder,
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -1911,7 +1936,7 @@ const s = StyleSheet.create({
     borderColor: LIGHT_PURPLE,
   },
   hourChipText: {
-    color: '#D2D2E6',
+    color: COLORS.textMuted,
     fontSize: 13,
     fontWeight: '700',
   },
@@ -1932,9 +1957,9 @@ const s = StyleSheet.create({
     flex: 1,
     height: 36,
     borderRadius: 9,
-    backgroundColor: 'rgba(255, 255, 255, 0.04)',
+    backgroundColor: COLORS.surface,
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.06)',
+    borderColor: COLORS.surfaceBorder,
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -1943,7 +1968,7 @@ const s = StyleSheet.create({
     borderColor: LIGHT_PURPLE,
   },
   minuteChipText: {
-    color: '#D2D2E6',
+    color: COLORS.textMuted,
     fontSize: 12,
     fontWeight: '700',
   },
@@ -1952,12 +1977,13 @@ const s = StyleSheet.create({
     fontWeight: '800',
   },
   ampmContainer: {
+    flex: 1,
     flexDirection: 'row',
     height: 36,
     borderRadius: 9,
-    backgroundColor: 'rgba(255, 255, 255, 0.04)',
+    backgroundColor: COLORS.surface,
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.06)',
+    borderColor: COLORS.surfaceBorder,
     overflow: 'hidden',
   },
   ampmChip: {
@@ -1970,7 +1996,7 @@ const s = StyleSheet.create({
     backgroundColor: PURPLE,
   },
   ampmChipText: {
-    color: '#D2D2E6',
+    color: COLORS.textMuted,
     fontSize: 12,
     fontWeight: '800',
   },
@@ -1985,9 +2011,9 @@ const s = StyleSheet.create({
     flex: 1,
     height: 36,
     borderRadius: 9,
-    backgroundColor: 'rgba(255, 255, 255, 0.04)',
+    backgroundColor: COLORS.surface,
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.06)',
+    borderColor: COLORS.surfaceBorder,
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -1996,7 +2022,7 @@ const s = StyleSheet.create({
     borderColor: LIGHT_PURPLE,
   },
   durationChipText: {
-    color: '#D2D2E6',
+    color: COLORS.textMuted,
     fontSize: 11,
     fontWeight: '700',
   },
@@ -2016,16 +2042,16 @@ const s = StyleSheet.create({
     gap: 8,
     height: 38,
     borderRadius: 10,
-    backgroundColor: 'rgba(255, 255, 255, 0.04)',
+    backgroundColor: COLORS.surface,
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.06)',
+    borderColor: COLORS.surfaceBorder,
   },
   selectedCalendarOption: {
     borderColor: PURPLE,
-    backgroundColor: 'rgba(143, 102, 255, 0.08)',
+    backgroundColor: 'rgba(13, 148, 136, 0.08)',
   },
   calendarOptionText: {
-    color: '#D2D2E6',
+    color: COLORS.textMuted,
     fontSize: 12,
     fontWeight: '700',
   },
@@ -2043,12 +2069,12 @@ const s = StyleSheet.create({
     height: 46,
     borderRadius: 14,
     borderWidth: 1.5,
-    borderColor: 'rgba(255, 255, 255, 0.15)',
+    borderColor: COLORS.surfaceBorder,
     justifyContent: 'center',
     alignItems: 'center',
   },
   modalCancelBtnText: {
-    color: '#D2D2E6',
+    color: COLORS.textMuted,
     fontSize: 14,
     fontWeight: '800',
   },
@@ -2061,7 +2087,7 @@ const s = StyleSheet.create({
     alignItems: 'center',
   },
   modalConfirmBtnDisabled: {
-    backgroundColor: 'rgba(143, 102, 255, 0.4)',
+    backgroundColor: 'rgba(13, 148, 136, 0.4)',
   },
   modalConfirmBtnText: {
     color: '#fff',
@@ -2101,7 +2127,7 @@ const s = StyleSheet.create({
     alignItems: 'center',
   },
   toastText: {
-    color: '#fff',
+    color: COLORS.text,
     fontSize: 13,
     fontWeight: '800',
   },
@@ -2131,7 +2157,7 @@ const s = StyleSheet.create({
   },
   locNotifMsg: {
     fontSize: 14,
-    color: '#FFF',
+    color: COLORS.text,
     lineHeight: 20,
   },
   locNotifMetaRow: {
@@ -2140,7 +2166,7 @@ const s = StyleSheet.create({
   locNotifMetaLabel: {
     fontSize: 12,
     opacity: 0.6,
-    color: '#FFF',
+    color: COLORS.textMuted,
   },
   locActionsGrid: {
     flexDirection: 'row',
@@ -2156,9 +2182,9 @@ const s = StyleSheet.create({
     flexDirection: 'row',
     height: 38,
     borderRadius: 10,
-    backgroundColor: 'rgba(255, 255, 255, 0.05)',
+    backgroundColor: COLORS.surface,
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.1)',
+    borderColor: COLORS.surfaceBorder,
     justifyContent: 'center',
     alignItems: 'center',
     gap: 6,
@@ -2166,7 +2192,7 @@ const s = StyleSheet.create({
   locActionBtnText: {
     fontSize: 12,
     fontWeight: '700',
-    color: '#FFF',
+    color: COLORS.text,
   },
   locActionBtnSmall: {
     flex: 1,
@@ -2174,13 +2200,13 @@ const s = StyleSheet.create({
     borderRadius: 8,
     backgroundColor: 'transparent',
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.06)',
+    borderColor: COLORS.surfaceBorder,
     justifyContent: 'center',
     alignItems: 'center',
   },
   locActionBtnTextSmall: {
     fontSize: 12,
-    color: '#FFF',
+    color: COLORS.textMuted,
     opacity: 0.6,
   },
   // Location Suggestion Edit modal styles
@@ -2209,7 +2235,7 @@ const s = StyleSheet.create({
     borderWidth: 1.2,
     borderColor: GLASS_BORDER,
     padding: 20,
-    shadowColor: '#8F66FF',
+    shadowColor: PURPLE,
     shadowOffset: { width: 0, height: 10 },
     shadowOpacity: 0.15,
     shadowRadius: 24,
@@ -2232,7 +2258,7 @@ const s = StyleSheet.create({
   locEditTitle: {
     fontSize: 18,
     fontWeight: '800',
-    color: '#FFF',
+    color: COLORS.text,
   },
   locEditBody: {
     gap: 12,
@@ -2245,10 +2271,10 @@ const s = StyleSheet.create({
   locTextInput: {
     height: 46,
     borderRadius: 10,
-    backgroundColor: 'rgba(255,255,255,0.05)',
+    backgroundColor: COLORS.surface,
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.1)',
-    color: '#FFF',
+    borderColor: COLORS.surfaceBorder,
+    color: COLORS.text,
     paddingHorizontal: 12,
     fontSize: 14,
   },
@@ -2282,16 +2308,16 @@ const s = StyleSheet.create({
   historyPlaceName: {
     fontSize: 15,
     fontWeight: '700',
-    color: '#FFF',
+    color: COLORS.text,
   },
   historyActivityDesc: {
     fontSize: 13,
     fontWeight: '600',
-    color: 'rgba(255, 255, 255, 0.6)',
+    color: COLORS.textMuted,
   },
   historyTimeText: {
     fontSize: 11,
-    color: 'rgba(255, 255, 255, 0.35)',
+    color: COLORS.textMuted,
     marginTop: 2,
   },
   loggedChip: {
@@ -2316,7 +2342,7 @@ const s = StyleSheet.create({
     backgroundColor: PURPLE,
   },
   logItemBtnText: {
-    color: '#080916',
+    color: DARK_BG,
     fontSize: 12,
     fontWeight: '800',
   },
@@ -2329,6 +2355,7 @@ const s = StyleSheet.create({
     borderRadius: 4.5,
     backgroundColor: RED,
     borderWidth: 1.5,
-    borderColor: '#080916',
+    borderColor: DARK_BG,
   },
 });
+};

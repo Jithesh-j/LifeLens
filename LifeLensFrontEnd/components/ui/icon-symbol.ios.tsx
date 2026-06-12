@@ -91,6 +91,8 @@ const VALID_SF_SYMBOLS = new Set([
   'book.fill',
   'cup.and.saucer',
   'cup.and.saucer.fill',
+  'dumbbell.fill',
+  'fork.knife',
 ]);
 
 export function IconSymbol({
